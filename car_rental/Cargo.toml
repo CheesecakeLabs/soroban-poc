@@ -1,0 +1,34 @@
+[package]
+name = "carsharing"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+testutils = ["soroban-sdk/testutils", "soroban-auth/testutils", "dep:ed25519-dalek"]
+
+[dependencies]
+soroban-sdk = "0.2.1"
+soroban-auth = "0.2.1"
+ed25519-dalek = { version = "1.0.1", optional = true }
+
+[dev_dependencies]
+soroban-sdk = { version = "0.2.1", features = ["testutils"] }
+soroban-auth = { version = "0.2.1", features = ["testutils"] }
+rand = {version = "0.8.5"}
+ed25519-dalek = { version = "1.0.1" }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true
