@@ -1,20 +1,27 @@
 #![no_std]
 use soroban_auth::verify;
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, contracttype, symbol, BigInt, Env};
+use soroban_sdk::{
+    contracterror, contractimpl, contracttype, panic_with_error, symbol, BigInt, Bytes, Env,
+};
 
-// #[contracterror]
-// #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-// #[repr(u32)]
-// pub enum Error {
-//     GameNotStarted = 1,
-//     MaxPlayersHit = 2,
-//     InvalidReveal = 3,
-//     InvalidOp = 4,
-//     NotRevealed = 5,
-//     LimitNotReached = 6,
-//     InvalidSignature = 7,
-// }
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum Error {
+    NotAuthorized = 1,
+    NonceShouldBeZero = 2,
+    IncorrectNonce = 3,
+    AlreadyInit = 4,
+    CarAlreadyExists = 5,
+    CarNotExists = 6,
+    CarAlreadyRented = 7,
+    CarIsNotRented = 8,
+    CarIsNotInDropReview = 9,
+    CarIsNotReserved = 10,
+    ClientIsNotRenter = 11,
+    CarIsNotWithRentedStatus = 12,
+}
 
 #[contracttype]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -25,13 +32,30 @@ pub enum ClientStatus {
     Declined = 2,
 }
 
-// #[contracttype]
-// #[derive(Clone, Default, Debug, Eq, PartialEq)]
-// pub struct CarDataKey {
-//     pub model: String,
-//     pub color: String,
-//     pub horse: i32,
-// }
+#[contracttype]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum RentedCarStatus {
+    Reserved = 0,
+    Rented = 1,
+    DropReview = 2,
+    DropReviewDenied = 3,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CarDataKey {
+    pub model: Bytes,
+    pub color: Bytes,
+    pub horse: i32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RentedCarDataKey {
+    pub renter: Identifier,
+    pub status: RentedCarStatus,
+}
 
 #[derive(Clone)]
 #[contracttype]
@@ -39,7 +63,8 @@ pub enum DataKey {
     Nonce(Identifier),
     Client(Identifier),
     Admin,
-    //Cars(Vec<CarDataKey>)
+    Car(Bytes),       // = CarDataKey
+    RentedCar(Bytes), // = RentedCarDataKey
 }
 
 fn write_client(env: &Env, client: Identifier, status: ClientStatus) {
@@ -48,6 +73,42 @@ fn write_client(env: &Env, client: Identifier, status: ClientStatus) {
 
 fn read_client(env: &Env, client: Identifier) -> ClientStatus {
     return env.data().get_unchecked(DataKey::Client(client)).unwrap();
+}
+
+fn write_car(env: &Env, plate: &Bytes, car_data: CarDataKey) {
+    env.data().set(DataKey::Car(plate.clone()), car_data)
+}
+
+fn read_car(env: &Env, plate: Bytes) -> CarDataKey {
+    return env.data().get_unchecked(DataKey::Car(plate)).unwrap();
+}
+
+fn has_car(env: &Env, plate: &Bytes) -> bool {
+    return env.data().has(DataKey::Car(plate.clone()));
+}
+
+fn remove_car(env: &Env, plate: &Bytes) {
+    env.data().remove(DataKey::Car(plate.clone()))
+}
+
+fn write_rented_car(env: &Env, plate: &Bytes, rented_car_data: RentedCarDataKey) {
+    env.data()
+        .set(DataKey::RentedCar(plate.clone()), rented_car_data)
+}
+
+fn read_rented_car(env: &Env, plate: &Bytes) -> RentedCarDataKey {
+    return env
+        .data()
+        .get_unchecked(DataKey::RentedCar(plate.clone()))
+        .unwrap();
+}
+
+fn remove_rented_car(env: &Env, plate: &Bytes) {
+    env.data().remove(DataKey::RentedCar(plate.clone()))
+}
+
+fn has_rented_car(env: &Env, plate: &Bytes) -> bool {
+    return env.data().has(DataKey::RentedCar(plate.clone()));
 }
 
 fn write_admin(env: &Env, admin: Identifier) {
@@ -65,50 +126,56 @@ fn read_admin(env: &Env) -> Identifier {
 fn check_admin(env: &Env, auth: &Signature) {
     let auth_id = auth.identifier(&env);
     if auth_id != read_admin(&env) {
-        panic!("Not authorized!")
+        panic_with_error!(&env, Error::NotAuthorized)
     }
 }
-fn read_nonce(e: &Env, id: &Identifier) -> BigInt {
+
+fn read_nonce(env: &Env, id: &Identifier) -> BigInt {
     let key = DataKey::Nonce(id.clone());
-    e.data()
+    env.data()
         .get(key)
-        .unwrap_or_else(|| Ok(BigInt::zero(e)))
+        .unwrap_or_else(|| Ok(BigInt::zero(env)))
         .unwrap()
 }
 
-fn verify_and_consume_nonce(e: &Env, auth: &Signature, expected_nonce: &BigInt) {
+fn verify_and_consume_nonce(env: &Env, auth: &Signature, expected_nonce: &BigInt) {
     match auth {
         Signature::Invoker => {
-            if BigInt::zero(&e) != expected_nonce {
-                panic!("nonce should be zero for Invoker")
+            if BigInt::zero(&env) != expected_nonce {
+                panic_with_error!(&env, Error::NonceShouldBeZero)
             }
             return;
         }
         _ => {}
     }
 
-    let id = auth.identifier(&e);
+    let id = auth.identifier(&env);
     let key = DataKey::Nonce(id.clone());
-    let nonce = read_nonce(e, &id);
+    let nonce = read_nonce(env, &id);
 
     if nonce != expected_nonce {
-        panic!("incorrect nonce")
+        panic_with_error!(&env, Error::IncorrectNonce)
     }
-    e.data().set(key, &nonce + 1);
+    env.data().set(key, &nonce + 1);
 }
 
 pub trait CarRentalTrait {
+    /// # Admin Flow
     fn init(env: Env, admin: Identifier);
-    fn add_car();
-    fn remove_car();
+    fn add_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes, car_data: CarDataKey);
+    fn remove_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes);
     fn appr_req(env: Env, admin: Signature, client: Identifier, nonce: BigInt);
     fn deny_req(env: Env, admin: Signature, client: Identifier, nonce: BigInt);
-    fn drop_insp();
+
     fn open_req(env: Env, client: Signature, nonce: BigInt);
-    fn take_car();
-    fn drop_car();
-    fn take_insp();
+
+    fn take_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes);
+    fn resrve_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes);
+    fn drop_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes);
+    fn accpt_drop(env: Env, admin: Signature, nonce: BigInt, plate: Bytes);
+    fn deny_drop(env: Env, admin: Signature, nonce: BigInt, plate: Bytes);
     fn read_clnt(env: Env, client: Identifier) -> ClientStatus;
+    fn nonce(env: Env, identifier: Identifier) -> BigInt;
 }
 
 pub struct CarRentalContract;
@@ -118,14 +185,40 @@ impl CarRentalTrait for CarRentalContract {
     // Admin
     fn init(env: Env, admin: Identifier) {
         if has_admin(&env) {
-            panic!("already init")
+            panic_with_error!(&env, Error::AlreadyInit)
         }
         write_admin(&env, admin);
     }
 
-    fn add_car() {}
+    fn add_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes, car_data: CarDataKey) {
+        check_admin(&env, &admin);
+        verify_and_consume_nonce(&env, &admin, &nonce);
 
-    fn remove_car() {}
+        let admin_id = admin.identifier(&env);
+        verify(&env, &admin, symbol!("add_car"), (admin_id, nonce));
+        if has_car(&env, &plate) {
+            panic_with_error!(&env, Error::CarAlreadyExists)
+        }
+        write_car(&env, &plate, car_data)
+    }
+
+    fn remove_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes) {
+        check_admin(&env, &admin);
+        verify_and_consume_nonce(&env, &admin, &nonce);
+
+        let admin_id = admin.identifier(&env);
+        verify(&env, &admin, symbol!("remove_car"), (admin_id, nonce));
+
+        if !has_car(&env, &plate) {
+            panic_with_error!(&env, Error::CarNotExists)
+        }
+
+        if has_rented_car(&env, &plate) {
+            panic_with_error!(&env, Error::CarAlreadyRented)
+        }
+
+        remove_car(&env, &plate)
+    }
 
     fn appr_req(env: Env, admin: Signature, client: Identifier, nonce: BigInt) {
         check_admin(&env, &admin);
@@ -147,9 +240,45 @@ impl CarRentalTrait for CarRentalContract {
         write_client(&env, client, ClientStatus::Declined)
     }
 
-    fn drop_insp() {}
+    fn accpt_drop(env: Env, admin: Signature, nonce: BigInt, plate: Bytes) {
+        check_admin(&env, &admin);
+        verify_and_consume_nonce(&env, &admin, &nonce);
 
-    // User
+        let admin_id = admin.identifier(&env);
+        verify(&env, &admin, symbol!("accpt_drop"), (admin_id, nonce));
+
+        if !has_rented_car(&env, &plate) {
+            panic_with_error!(&env, Error::CarIsNotRented)
+        }
+
+        let rented_car_data = read_rented_car(&env, &plate);
+        if rented_car_data.status != RentedCarStatus::DropReview {
+            panic_with_error!(&env, Error::CarIsNotInDropReview)
+        }
+
+        remove_rented_car(&env, &plate)
+    }
+
+    fn deny_drop(env: Env, admin: Signature, nonce: BigInt, plate: Bytes) {
+        check_admin(&env, &admin);
+        verify_and_consume_nonce(&env, &admin, &nonce);
+
+        let admin_id = admin.identifier(&env);
+        verify(&env, &admin, symbol!("accpt_drop"), (admin_id, nonce));
+
+        if !has_rented_car(&env, &plate) {
+            panic_with_error!(&env, Error::CarIsNotRented)
+        }
+
+        let mut rented_car_data = read_rented_car(&env, &plate);
+        if rented_car_data.status != RentedCarStatus::DropReview {
+            panic_with_error!(&env, Error::CarIsNotInDropReview)
+        }
+
+        rented_car_data.status = RentedCarStatus::DropReviewDenied;
+        write_rented_car(&env, &plate, rented_car_data)
+    }
+
     fn open_req(env: Env, client: Signature, nonce: BigInt) {
         verify_and_consume_nonce(&env, &client, &nonce);
 
@@ -164,14 +293,96 @@ impl CarRentalTrait for CarRentalContract {
         write_client(&env, client_identifier, ClientStatus::Pending)
     }
 
-    fn take_car() {}
+    fn resrve_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes) {
+        verify_and_consume_nonce(&env, &client, &nonce);
 
-    fn drop_car() {}
+        let client_identifier = client.identifier(&env);
+        verify(
+            &env,
+            &client,
+            symbol!("resrve_car"),
+            (&client_identifier, nonce),
+        );
 
-    fn take_insp() {}
+        if !has_car(&env, &plate) {
+            panic_with_error!(&env, Error::CarNotExists)
+        }
+
+        if has_rented_car(&env, &plate) {
+            panic_with_error!(&env, Error::CarAlreadyRented)
+        }
+
+        write_rented_car(
+            &env,
+            &plate,
+            RentedCarDataKey {
+                renter: client_identifier,
+                status: RentedCarStatus::Reserved,
+            },
+        )
+    }
+
+    fn take_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes) {
+        verify_and_consume_nonce(&env, &client, &nonce);
+
+        let client_identifier = client.identifier(&env);
+        verify(
+            &env,
+            &client,
+            symbol!("take_car"),
+            (&client_identifier, nonce),
+        );
+
+        if !has_rented_car(&env, &plate) {
+            panic_with_error!(&env, Error::CarIsNotRented)
+        }
+
+        let mut rented_car_data = read_rented_car(&env, &plate);
+        if rented_car_data.renter != client_identifier {
+            panic_with_error!(&env, Error::ClientIsNotRenter)
+        }
+        if rented_car_data.status != RentedCarStatus::Reserved {
+            panic_with_error!(&env, Error::CarIsNotReserved)
+        }
+
+        rented_car_data.status = RentedCarStatus::Rented;
+        write_rented_car(&env, &plate, rented_car_data)
+    }
+
+    fn drop_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes) {
+        verify_and_consume_nonce(&env, &client, &nonce);
+
+        let client_identifier = client.identifier(&env);
+        verify(
+            &env,
+            &client,
+            symbol!("take_car"),
+            (&client_identifier, nonce),
+        );
+
+        if !has_rented_car(&env, &plate) {
+            panic_with_error!(&env, Error::CarIsNotRented)
+        }
+
+        let mut rented_car_data = read_rented_car(&env, &plate);
+        if rented_car_data.renter != client_identifier {
+            panic_with_error!(&env, Error::ClientIsNotRenter)
+        }
+        match rented_car_data.status {
+            RentedCarStatus::Rented | RentedCarStatus::DropReviewDenied => {
+                rented_car_data.status = RentedCarStatus::DropReview;
+                write_rented_car(&env, &plate, rented_car_data)
+            }
+            _ => panic_with_error!(&env, Error::CarIsNotWithRentedStatus),
+        }
+    }
 
     fn read_clnt(env: Env, client: Identifier) -> ClientStatus {
         read_client(&env, client)
+    }
+
+    fn nonce(env: Env, identifier: Identifier) -> BigInt {
+        read_nonce(&env, &identifier)
     }
 }
 
