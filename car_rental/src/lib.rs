@@ -166,7 +166,7 @@ fn verify_and_consume_nonce(env: &Env, auth: &Signature, expected_nonce: &BigInt
 pub trait CarRentalTrait {
     /// # Admin Flow
     fn init(env: Env, admin: Identifier);
-    fn add_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes, car_data: CarDataKey);
+    fn add_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes, model: Bytes, color:Bytes, horse: i32);
     fn remove_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes);
     fn appr_req(env: Env, admin: Signature, client: Identifier, nonce: BigInt);
     fn deny_req(env: Env, admin: Signature, client: Identifier, nonce: BigInt);
@@ -181,6 +181,9 @@ pub trait CarRentalTrait {
     fn deny_drop(env: Env, admin: Signature, nonce: BigInt, plate: Bytes);
     fn read_clnt(env: Env, client: Identifier) -> ClientStatus;
     fn nonce(env: Env, identifier: Identifier) -> BigInt;
+    fn read_rent(env: Env, plate: Bytes) -> RentedCarDataKey;
+    fn has_rent(env: Env, plate: Bytes) -> bool;
+
 }
 
 pub struct CarRentalContract;
@@ -195,7 +198,7 @@ impl CarRentalTrait for CarRentalContract {
         write_admin(&env, admin);
     }
 
-    fn add_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes, car_data: CarDataKey) {
+    fn add_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes, model: Bytes, color: Bytes, horse: i32) {
         check_admin(&env, &admin);
         verify_and_consume_nonce(&env, &admin, &nonce);
 
@@ -204,7 +207,7 @@ impl CarRentalTrait for CarRentalContract {
         if has_car(&env, &plate) {
             panic_with_error!(&env, Error::CarAlreadyExists)
         }
-        write_car(&env, &plate, car_data)
+        write_car(&env, &plate, CarDataKey { model: model, color: color, horse: horse })
     }
 
     fn remove_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes) {
@@ -364,7 +367,7 @@ impl CarRentalTrait for CarRentalContract {
         verify(
             &env,
             &client,
-            symbol!("take_car"),
+            symbol!("drop_car"),
             (&client_identifier, nonce),
         );
 
@@ -398,6 +401,16 @@ impl CarRentalTrait for CarRentalContract {
         // Todo check if car exist.
         read_car(&env, plate)
     }
+
+    fn read_rent(env: Env, plate: Bytes) -> RentedCarDataKey {
+        //  read rented car
+        read_rented_car(&env, &plate)
+    }
+
+    fn has_rent(env: Env, plate: Bytes) -> bool {
+        has_rented_car(&env, &plate)
+    }
+
 }
 
 #[cfg(test)]
