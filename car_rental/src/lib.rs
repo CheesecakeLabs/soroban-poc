@@ -21,6 +21,7 @@ pub enum Error {
     CarIsNotReserved = 10,
     ClientIsNotRenter = 11,
     CarIsNotWithRentedStatus = 12,
+    ClientNotAuthorized = 13,
 }
 
 #[contracttype]
@@ -72,7 +73,11 @@ fn write_client(env: &Env, client: Identifier, status: ClientStatus) {
 }
 
 fn read_client(env: &Env, client: Identifier) -> ClientStatus {
-    return env.data().get_unchecked(DataKey::Client(client)).unwrap();
+    env.data().get_unchecked(DataKey::Client(client)).unwrap()
+}
+
+fn is_client_authorized(env: &Env, client: &Identifier) -> bool {
+    read_client(env, client.clone()) == ClientStatus::Approved
 }
 
 fn write_car(env: &Env, plate: &Bytes, car_data: CarDataKey) {
@@ -80,11 +85,11 @@ fn write_car(env: &Env, plate: &Bytes, car_data: CarDataKey) {
 }
 
 fn read_car(env: &Env, plate: Bytes) -> CarDataKey {
-    return env.data().get_unchecked(DataKey::Car(plate)).unwrap();
+    env.data().get_unchecked(DataKey::Car(plate)).unwrap()
 }
 
 fn has_car(env: &Env, plate: &Bytes) -> bool {
-    return env.data().has(DataKey::Car(plate.clone()));
+    env.data().has(DataKey::Car(plate.clone()))
 }
 
 fn remove_car(env: &Env, plate: &Bytes) {
@@ -97,10 +102,9 @@ fn write_rented_car(env: &Env, plate: &Bytes, rented_car_data: RentedCarDataKey)
 }
 
 fn read_rented_car(env: &Env, plate: &Bytes) -> RentedCarDataKey {
-    return env
-        .data()
+    env.data()
         .get_unchecked(DataKey::RentedCar(plate.clone()))
-        .unwrap();
+        .unwrap()
 }
 
 fn remove_rented_car(env: &Env, plate: &Bytes) {
@@ -108,7 +112,7 @@ fn remove_rented_car(env: &Env, plate: &Bytes) {
 }
 
 fn has_rented_car(env: &Env, plate: &Bytes) -> bool {
-    return env.data().has(DataKey::RentedCar(plate.clone()));
+    env.data().has(DataKey::RentedCar(plate.clone()))
 }
 
 fn write_admin(env: &Env, admin: Identifier) {
@@ -116,11 +120,11 @@ fn write_admin(env: &Env, admin: Identifier) {
 }
 
 fn has_admin(env: &Env) -> bool {
-    return env.data().has(DataKey::Admin);
+    env.data().has(DataKey::Admin)
 }
 
 fn read_admin(env: &Env) -> Identifier {
-    return env.data().get_unchecked(DataKey::Admin).unwrap();
+    env.data().get_unchecked(DataKey::Admin).unwrap()
 }
 
 fn check_admin(env: &Env, auth: &Signature) {
@@ -170,6 +174,7 @@ pub trait CarRentalTrait {
     fn open_req(env: Env, client: Signature, nonce: BigInt);
 
     fn take_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes);
+    fn read_car(env: Env, plate: Bytes) -> CarDataKey;
     fn resrve_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes);
     fn drop_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes);
     fn accpt_drop(env: Env, admin: Signature, nonce: BigInt, plate: Bytes);
@@ -304,6 +309,9 @@ impl CarRentalTrait for CarRentalContract {
             (&client_identifier, nonce),
         );
 
+        if !is_client_authorized(&env, &client_identifier) {
+            panic_with_error!(&env, Error::ClientNotAuthorized)
+        }
         if !has_car(&env, &plate) {
             panic_with_error!(&env, Error::CarNotExists)
         }
@@ -378,11 +386,17 @@ impl CarRentalTrait for CarRentalContract {
     }
 
     fn read_clnt(env: Env, client: Identifier) -> ClientStatus {
+        // Todo Check if client exist
         read_client(&env, client)
     }
 
     fn nonce(env: Env, identifier: Identifier) -> BigInt {
         read_nonce(&env, &identifier)
+    }
+
+    fn read_car(env: Env, plate: Bytes) -> CarDataKey {
+        // Todo check if car exist.
+        read_car(&env, plate)
     }
 }
 
