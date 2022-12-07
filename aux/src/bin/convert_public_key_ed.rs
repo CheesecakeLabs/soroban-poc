@@ -1,3 +1,4 @@
+use std::env;
 use std::fmt::Write;
 use std::io::{self};
 
@@ -11,8 +12,9 @@ pub fn encode_hex(bytes: &[u8]) -> String {
     s
 }
 
-fn test_strkey_decode(key: String) {
+fn test_strkey_decode(key: &String) {
     let str_key = Strkey::from_string(&key).unwrap();
+
     match str_key {
         Strkey::PublicKeyEd25519(value) => match value {
             stellar_strkey::StrkeyPublicKeyEd25519(v) => println!("{:?}", encode_hex(&v)),
@@ -23,10 +25,9 @@ fn test_strkey_decode(key: String) {
 }
 
 fn main() {
-    let mut input = String::new();
-    match io::stdin().read_line(&mut input) {
-        Ok(_goes_into_input_above) => {}
-        Err(_no_updates_is_fine) => {}
-    }
-    test_strkey_decode(input.trim().to_string());
+    let args: Vec<String> = env::args().collect();
+
+    let query = &args[1];
+
+    test_strkey_decode(&query);
 }
