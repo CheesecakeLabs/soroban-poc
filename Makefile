@@ -10,6 +10,8 @@ IDENTIFIER_CLIENT='{"object":{"vec":[{"symbol":"Account"},{"object":{"accountId"
 SOROBAN_DEPLOY=$(shell soroban deploy --wasm $(CONTRACT_WASM_TARGET) --secret-key $(SECRET_KEY) --rpc-url $(RPC_URL) --network-passphrase $(SECRET_PHRASE))
 HEX_CONVERT=cargo run --manifest-path aux/Cargo.toml --bin hex_convert
 
+CHECK_CONTRACT_ID = $(if $(value $(1)),,$(shell echo CONTRACT_ID=$(SOROBAN_DEPLOY)  >> .env))
+CHECK_CONVERT_PK = $(if $(value $(1)),,$(shell 	echo PUBLIC_KEY_ED=$(CONVERT_PK) >> .env))
 
 friend_bot:
 	curl "https://friendbot-futurenet.stellar.org/?addr=$(PUBLIC_KEY)"
@@ -21,15 +23,14 @@ build_contract:
 	cargo build --manifest-path car_rental/Cargo.toml --target wasm32-unknown-unknown --release
 
 convert_pk:
-	echo PUBLIC_KEY_ED=$(CONVERT_PK) >> .env
+	$(call CHECK_CONVERT_PK,PUBLIC_KEY_ED)
 
 convert_pk_client:
 	$(eval PUBLIC_KEY_ED_CLIENT=$(CONVERT_PK_CLIENT))
 
-ndef = $(if $(value $(1)),,$(shell echo CONTRACT_ID=$(SOROBAN_DEPLOY)  >> .env))
 
 deploy: convert_pk
-	$(call ndef,CONTRACT_ID)
+	$(call CHECK_CONTRACT_ID,CONTRACT_ID)
 	echo "deploying $(CONTRACT_ID)"
 
 init:
