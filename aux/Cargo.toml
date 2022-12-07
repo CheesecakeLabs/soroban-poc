@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 hex = "0.4.3"
+json = "0.12.4"
 stellar-strkey = "0.0.6"
