@@ -2,7 +2,7 @@
 use soroban_auth::verify;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{
-    contracterror, contractimpl, contracttype, panic_with_error, symbol, BigInt, Bytes, Env,
+    contracterror, contractimpl, contracttype, panic_with_error, symbol, Bytes, Env,
 };
 
 #[contracterror]
@@ -134,18 +134,15 @@ fn check_admin(env: &Env, auth: &Signature) {
     }
 }
 
-fn read_nonce(env: &Env, id: &Identifier) -> BigInt {
+fn read_nonce(env: &Env, id: &Identifier) -> i128 {
     let key = DataKey::Nonce(id.clone());
-    env.data()
-        .get(key)
-        .unwrap_or_else(|| Ok(BigInt::zero(env)))
-        .unwrap()
+    env.data().get(key).unwrap_or_else(|| Ok(0)).unwrap()
 }
 
-fn verify_and_consume_nonce(env: &Env, auth: &Signature, expected_nonce: &BigInt) {
+fn verify_and_consume_nonce(env: &Env, auth: &Signature, expected_nonce: i128) {
     match auth {
         Signature::Invoker => {
-            if BigInt::zero(&env) != expected_nonce {
+            if expected_nonce != 0 {
                 panic_with_error!(&env, Error::NonceShouldBeZero)
             }
             return;
@@ -160,30 +157,37 @@ fn verify_and_consume_nonce(env: &Env, auth: &Signature, expected_nonce: &BigInt
     if nonce != expected_nonce {
         panic_with_error!(&env, Error::IncorrectNonce)
     }
-    env.data().set(key, &nonce + 1);
+    env.data().set(key, nonce + 1);
 }
 
 pub trait CarRentalTrait {
     /// # Admin Flow
     fn init(env: Env, admin: Identifier);
-    fn add_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes, model: Bytes, color:Bytes, horse: i32);
-    fn remove_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes);
-    fn appr_req(env: Env, admin: Signature, client: Identifier, nonce: BigInt);
-    fn deny_req(env: Env, admin: Signature, client: Identifier, nonce: BigInt);
+    fn add_car(
+        env: Env,
+        admin: Signature,
+        nonce: i128,
+        plate: Bytes,
+        model: Bytes,
+        color: Bytes,
+        horse: i32,
+    );
+    fn remove_car(env: Env, admin: Signature, nonce: i128, plate: Bytes);
+    fn appr_req(env: Env, admin: Signature, client: Identifier, nonce: i128);
+    fn deny_req(env: Env, admin: Signature, client: Identifier, nonce: i128);
 
-    fn open_req(env: Env, client: Signature, nonce: BigInt);
+    fn open_req(env: Env, client: Signature, nonce: i128);
 
-    fn take_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes);
+    fn take_car(env: Env, client: Signature, nonce: i128, plate: Bytes);
     fn read_car(env: Env, plate: Bytes) -> CarDataKey;
-    fn resrve_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes);
-    fn drop_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes);
-    fn accpt_drop(env: Env, admin: Signature, nonce: BigInt, plate: Bytes);
-    fn deny_drop(env: Env, admin: Signature, nonce: BigInt, plate: Bytes);
+    fn resrve_car(env: Env, client: Signature, nonce: i128, plate: Bytes);
+    fn drop_car(env: Env, client: Signature, nonce: i128, plate: Bytes);
+    fn accpt_drop(env: Env, admin: Signature, nonce: i128, plate: Bytes);
+    fn deny_drop(env: Env, admin: Signature, nonce: i128, plate: Bytes);
     fn read_clnt(env: Env, client: Identifier) -> ClientStatus;
-    fn nonce(env: Env, identifier: Identifier) -> BigInt;
+    fn nonce(env: Env, identifier: Identifier) -> i128;
     fn read_rent(env: Env, plate: Bytes) -> RentedCarDataKey;
     fn has_rent(env: Env, plate: Bytes) -> bool;
-
 }
 
 pub struct CarRentalContract;
@@ -198,21 +202,37 @@ impl CarRentalTrait for CarRentalContract {
         write_admin(&env, admin);
     }
 
-    fn add_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes, model: Bytes, color: Bytes, horse: i32) {
+    fn add_car(
+        env: Env,
+        admin: Signature,
+        nonce: i128,
+        plate: Bytes,
+        model: Bytes,
+        color: Bytes,
+        horse: i32,
+    ) {
         check_admin(&env, &admin);
-        verify_and_consume_nonce(&env, &admin, &nonce);
+        verify_and_consume_nonce(&env, &admin, nonce);
 
         let admin_id = admin.identifier(&env);
         verify(&env, &admin, symbol!("add_car"), (admin_id, nonce));
         if has_car(&env, &plate) {
             panic_with_error!(&env, Error::CarAlreadyExists)
         }
-        write_car(&env, &plate, CarDataKey { model: model, color: color, horse: horse })
+        write_car(
+            &env,
+            &plate,
+            CarDataKey {
+                model: model,
+                color: color,
+                horse: horse,
+            },
+        )
     }
 
-    fn remove_car(env: Env, admin: Signature, nonce: BigInt, plate: Bytes) {
+    fn remove_car(env: Env, admin: Signature, nonce: i128, plate: Bytes) {
         check_admin(&env, &admin);
-        verify_and_consume_nonce(&env, &admin, &nonce);
+        verify_and_consume_nonce(&env, &admin, nonce);
 
         let admin_id = admin.identifier(&env);
         verify(&env, &admin, symbol!("remove_car"), (admin_id, nonce));
@@ -228,9 +248,9 @@ impl CarRentalTrait for CarRentalContract {
         remove_car(&env, &plate)
     }
 
-    fn appr_req(env: Env, admin: Signature, client: Identifier, nonce: BigInt) {
+    fn appr_req(env: Env, admin: Signature, client: Identifier, nonce: i128) {
         check_admin(&env, &admin);
-        verify_and_consume_nonce(&env, &admin, &nonce);
+        verify_and_consume_nonce(&env, &admin, nonce);
 
         let admin_id = admin.identifier(&env);
         verify(&env, &admin, symbol!("appr_req"), (admin_id, nonce));
@@ -238,9 +258,9 @@ impl CarRentalTrait for CarRentalContract {
         write_client(&env, client, ClientStatus::Approved)
     }
 
-    fn deny_req(env: Env, admin: Signature, client: Identifier, nonce: BigInt) {
+    fn deny_req(env: Env, admin: Signature, client: Identifier, nonce: i128) {
         check_admin(&env, &admin);
-        verify_and_consume_nonce(&env, &admin, &nonce);
+        verify_and_consume_nonce(&env, &admin, nonce);
 
         let admin_id = admin.identifier(&env);
         verify(&env, &admin, symbol!("deny_req"), (admin_id, nonce));
@@ -248,9 +268,9 @@ impl CarRentalTrait for CarRentalContract {
         write_client(&env, client, ClientStatus::Declined)
     }
 
-    fn accpt_drop(env: Env, admin: Signature, nonce: BigInt, plate: Bytes) {
+    fn accpt_drop(env: Env, admin: Signature, nonce: i128, plate: Bytes) {
         check_admin(&env, &admin);
-        verify_and_consume_nonce(&env, &admin, &nonce);
+        verify_and_consume_nonce(&env, &admin, nonce);
 
         let admin_id = admin.identifier(&env);
         verify(&env, &admin, symbol!("accpt_drop"), (admin_id, nonce));
@@ -267,9 +287,9 @@ impl CarRentalTrait for CarRentalContract {
         remove_rented_car(&env, &plate)
     }
 
-    fn deny_drop(env: Env, admin: Signature, nonce: BigInt, plate: Bytes) {
+    fn deny_drop(env: Env, admin: Signature, nonce: i128, plate: Bytes) {
         check_admin(&env, &admin);
-        verify_and_consume_nonce(&env, &admin, &nonce);
+        verify_and_consume_nonce(&env, &admin, nonce);
 
         let admin_id = admin.identifier(&env);
         verify(&env, &admin, symbol!("accpt_drop"), (admin_id, nonce));
@@ -287,8 +307,8 @@ impl CarRentalTrait for CarRentalContract {
         write_rented_car(&env, &plate, rented_car_data)
     }
 
-    fn open_req(env: Env, client: Signature, nonce: BigInt) {
-        verify_and_consume_nonce(&env, &client, &nonce);
+    fn open_req(env: Env, client: Signature, nonce: i128) {
+        verify_and_consume_nonce(&env, &client, nonce);
 
         let client_identifier = client.identifier(&env);
         verify(
@@ -301,8 +321,8 @@ impl CarRentalTrait for CarRentalContract {
         write_client(&env, client_identifier, ClientStatus::Pending)
     }
 
-    fn resrve_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes) {
-        verify_and_consume_nonce(&env, &client, &nonce);
+    fn resrve_car(env: Env, client: Signature, nonce: i128, plate: Bytes) {
+        verify_and_consume_nonce(&env, &client, nonce);
 
         let client_identifier = client.identifier(&env);
         verify(
@@ -333,8 +353,8 @@ impl CarRentalTrait for CarRentalContract {
         )
     }
 
-    fn take_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes) {
-        verify_and_consume_nonce(&env, &client, &nonce);
+    fn take_car(env: Env, client: Signature, nonce: i128, plate: Bytes) {
+        verify_and_consume_nonce(&env, &client, nonce);
 
         let client_identifier = client.identifier(&env);
         verify(
@@ -360,8 +380,8 @@ impl CarRentalTrait for CarRentalContract {
         write_rented_car(&env, &plate, rented_car_data)
     }
 
-    fn drop_car(env: Env, client: Signature, nonce: BigInt, plate: Bytes) {
-        verify_and_consume_nonce(&env, &client, &nonce);
+    fn drop_car(env: Env, client: Signature, nonce: i128, plate: Bytes) {
+        verify_and_consume_nonce(&env, &client, nonce);
 
         let client_identifier = client.identifier(&env);
         verify(
@@ -393,7 +413,7 @@ impl CarRentalTrait for CarRentalContract {
         read_client(&env, client)
     }
 
-    fn nonce(env: Env, identifier: Identifier) -> BigInt {
+    fn nonce(env: Env, identifier: Identifier) -> i128 {
         read_nonce(&env, &identifier)
     }
 
@@ -410,7 +430,6 @@ impl CarRentalTrait for CarRentalContract {
     fn has_rent(env: Env, plate: Bytes) -> bool {
         has_rented_car(&env, &plate)
     }
-
 }
 
 #[cfg(test)]

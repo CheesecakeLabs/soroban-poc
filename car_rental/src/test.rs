@@ -17,7 +17,7 @@ fn test() {
     // Admin init
     client.init(&Identifier::Account(admin.clone()));
 
-    let mut nonce = BigInt::from_u32(&env, 0);
+    let mut nonce = 0;
     let mut sig = soroban_auth::testutils::ed25519::sign(
         &env,
         &user_1_sign,
@@ -32,21 +32,17 @@ fn test() {
     assert_eq!(user_1_status, ClientStatus::Pending);
 
     // Admin denies client request
-    client.with_source_account(&admin).deny_req(
-        &Signature::Invoker,
-        &user_1_id,
-        &BigInt::zero(&env),
-    );
+    client
+        .with_source_account(&admin)
+        .deny_req(&Signature::Invoker, &user_1_id, &0);
 
     let user_1_status = client.read_clnt(&user_1_id);
     assert_eq!(user_1_status, ClientStatus::Declined);
 
     // Admin approves client request
-    client.with_source_account(&admin).appr_req(
-        &Signature::Invoker,
-        &user_1_id,
-        &BigInt::zero(&env),
-    );
+    client
+        .with_source_account(&admin)
+        .appr_req(&Signature::Invoker, &user_1_id, &0);
 
     let user_1_status = client.read_clnt(&user_1_id);
     assert_eq!(user_1_status, ClientStatus::Approved);
@@ -59,7 +55,7 @@ fn test() {
     // Admin adds a new car
     client.with_source_account(&admin).add_car(
         &Signature::Invoker,
-        &BigInt::zero(&env),
+        &0,
         &"IYD8J01".into_val(&env),
         &car_data.model,
         &car_data.color,
@@ -67,7 +63,7 @@ fn test() {
     );
 
     assert_eq!(client.read_car(&"IYD8J01".into_val(&env)), car_data);
-    nonce = nonce+1;
+    nonce = nonce + 1;
     sig = soroban_auth::testutils::ed25519::sign(
         &env,
         &user_1_sign,
@@ -76,16 +72,12 @@ fn test() {
         (&user_1_id, &nonce),
     );
 
-    client.resrve_car(
-        &sig,
-        &nonce,
-        &"IYD8J01".into_val(&env),
-    );
+    client.resrve_car(&sig, &nonce, &"IYD8J01".into_val(&env));
 
     let rented_car = client.read_rent(&"IYD8J01".into_val(&env));
     assert_eq!(rented_car.status, RentedCarStatus::Reserved);
 
-    nonce = nonce+1;
+    nonce = nonce + 1;
 
     sig = soroban_auth::testutils::ed25519::sign(
         &env,
@@ -95,11 +87,7 @@ fn test() {
         (&user_1_id, &nonce),
     );
 
-    client.take_car(
-        &sig,
-        &nonce,
-        &"IYD8J01".into_val(&env),
-    );
+    client.take_car(&sig, &nonce, &"IYD8J01".into_val(&env));
 
     let rented_car = client.read_rent(&"IYD8J01".into_val(&env));
     assert_eq!(rented_car.status, RentedCarStatus::Rented);
@@ -107,12 +95,12 @@ fn test() {
     // // Admin remove a car
     // client.with_source_account(&admin).remove_car(
     //     &Signature::Invoker,
-    //     &BigInt::zero(&env),
+    //     &0,
     //     &"IYD8J01".into_val(&env),
     // );
 
     // Drop car
-    nonce = nonce+1;
+    nonce = nonce + 1;
     sig = soroban_auth::testutils::ed25519::sign(
         &env,
         &user_1_sign,
@@ -121,25 +109,21 @@ fn test() {
         (&user_1_id, &nonce),
     );
 
-    client.drop_car(
-        &sig,
-        &nonce,
-        &"IYD8J01".into_val(&env),
-    );
+    client.drop_car(&sig, &nonce, &"IYD8J01".into_val(&env));
     let rented_car = client.read_rent(&"IYD8J01".into_val(&env));
     assert_eq!(rented_car.status, RentedCarStatus::DropReview);
 
     // Deny drop request
     client.with_source_account(&admin).deny_drop(
         &Signature::Invoker,
-        &BigInt::zero(&env),
-        &"IYD8J01".into_val(&env)
+        &0,
+        &"IYD8J01".into_val(&env),
     );
     let rented_car = client.read_rent(&"IYD8J01".into_val(&env));
     assert_eq!(rented_car.status, RentedCarStatus::DropReviewDenied);
 
     // Drop car
-    nonce = nonce+1;
+    nonce = nonce + 1;
     sig = soroban_auth::testutils::ed25519::sign(
         &env,
         &user_1_sign,
@@ -148,23 +132,17 @@ fn test() {
         (&user_1_id, &nonce),
     );
 
-    client.drop_car(
-        &sig,
-        &nonce,
-        &"IYD8J01".into_val(&env),
-    );
+    client.drop_car(&sig, &nonce, &"IYD8J01".into_val(&env));
     let rented_car = client.read_rent(&"IYD8J01".into_val(&env));
     assert_eq!(rented_car.status, RentedCarStatus::DropReview);
-
 
     // Accept drop request
     client.with_source_account(&admin).accpt_drop(
         &Signature::Invoker,
-        &BigInt::zero(&env),
-        &"IYD8J01".into_val(&env)
+        &0,
+        &"IYD8J01".into_val(&env),
     );
     assert_eq!(client.has_rent(&"IYD8J01".into_val(&env)), false);
-
 }
 
 // INIT Failed (has_admin = True)
@@ -184,8 +162,6 @@ fn already_initialized() {
     // check if admin ==
 }
 
-
-
 #[test]
 #[should_panic(expected = "Status(ContractError(5))")]
 fn add_car_fails_already_exists() {
@@ -201,7 +177,7 @@ fn add_car_fails_already_exists() {
     };
     client.with_source_account(&(admin.clone())).add_car(
         &Signature::Invoker,
-        &BigInt::zero(&env),
+        &0,
         &"IYD8J01".into_val(&env),
         &car_data.model,
         &car_data.color,
@@ -215,7 +191,7 @@ fn add_car_fails_already_exists() {
     };
     client.with_source_account(&admin).add_car(
         &Signature::Invoker,
-        &BigInt::zero(&env),
+        &0,
         &"IYD8J01".into_val(&env),
         &car_data.model,
         &car_data.color,
@@ -234,7 +210,7 @@ fn remove_car_fails_no_exist() {
 
     client.with_source_account(&admin).remove_car(
         &Signature::Invoker,
-        &BigInt::zero(&env),
+        &0,
         &"IYD8J01".into_val(&env),
     );
 }
@@ -248,14 +224,7 @@ fn take_car_fails_car_not_rented() {
     let admin = env.accounts().generate();
     client.init(&Identifier::Account(admin.clone()));
 
-    client.with_source_account(&admin).take_car(
-        &Signature::Invoker,
-        &BigInt::zero(&env),
-        &"IYD8J01".into_val(&env),
-    );
+    client
+        .with_source_account(&admin)
+        .take_car(&Signature::Invoker, &0, &"IYD8J01".into_val(&env));
 }
-
-
-
-
-
