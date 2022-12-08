@@ -1,7 +1,5 @@
 use std::env;
 use std::fmt::Write;
-use std::io::{self};
-
 use stellar_strkey::*;
 
 pub fn encode_hex(bytes: &[u8]) -> String {

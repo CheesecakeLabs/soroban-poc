@@ -1,7 +1,10 @@
 #![cfg(test)]
-use super::*;
+
+use crate::contract::CarRentalContract;
+use crate::contract::CarRentalContractClient;
+use crate::storage_types::{CarDataKey, ClientStatus, RentedCarDataKey, RentedCarStatus};
 use core::fmt::Debug;
-use soroban_auth::Identifier;
+use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{symbol, testutils::Accounts, BigInt, BytesN, Env, IntoVal};
 
 pub struct CarRental {
