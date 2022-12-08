@@ -1,40 +1,23 @@
-use json::{self, JsonValue};
+use serde::{Deserialize, Serialize};
+use serde_json::Result;
 use std::str;
 
-fn main() {
-    // some bytes, in a vector
-    // let mut intVar: u8 = 71;
-    // let mut charVar: char;
+#[derive(Debug, Serialize, Deserialize)]
+struct Data {
+    color: Vec<u8>,
+}
 
-    // charVar = intVar as char;
-    // println!("Character is : {}", charVar);
+fn from_bytes_to_str(bytes: Vec<u8>) {
+    println!("{}", str::from_utf8(&bytes).unwrap())
+}
 
-    // let var = vec![71, 111, 108];
-    // let args: Vec<String> = env::args().collect();
-    // let query = &args[1];
+fn main() -> Result<()> {
+    let json = r#"{
+        "color":[114,101,100],"horse":32,"model":[71,111,108]
+    }"#;
+    let data: Data = serde_json::from_str(json)?;
+    println!("{:?}", data.color);
 
-    // We know these bytes are valid, so just use unwrap().
-    // let var = str::from_utf8(&var).unwrap();
-
-    let parsed = json::parse(
-        r#"
-
-    {"color":[114,101,100],"horse":32,"model":[71,111,108]}
-
-    "#,
-    )
-    .unwrap();
-
-    let vec: Vec<u32> = parsed["model"]
-        .into_iter()
-        .map(|value| json::from_value(value).unwrap())
-        .collect();
-
-    match var {
-        JsonValue::Array(value) => println!("{:?}", str::from_utf8(&value.to_).unwrap()),
-        _ => println!("error"),
-    }
-
-    // let var = Vec::from(parsed["model"].clone());
-    // println!("{}", str::from_utf8(&var).unwrap());
+    from_bytes_to_str(data.color);
+    Ok(())
 }

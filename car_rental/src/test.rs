@@ -1,165 +1,318 @@
 #![cfg(test)]
-
 use super::*;
-
+use core::fmt::Debug;
 use soroban_auth::Identifier;
-use soroban_sdk::{symbol, testutils::Accounts, Env, IntoVal};
+use soroban_sdk::{symbol, testutils::Accounts, BigInt, BytesN, Env, IntoVal};
+
+pub struct CarRental {
+    env: Env,
+    contract_id: BytesN<32>,
+}
+
+impl CarRental {
+    pub fn new(env: &Env, contract_id: &BytesN<32>) -> Self {
+        Self {
+            env: env.clone(),
+            contract_id: contract_id.clone(),
+        }
+    }
+
+    pub fn init(&self, admin: &Identifier) {
+        CarRentalContractClient::new(&self.env, &self.contract_id).init(admin);
+    }
+
+    // Admin methods (using Invoker Signature)
+    fn deny_request(&self, admin: &soroban_sdk::AccountId, client_id: Identifier) {
+        CarRentalContractClient::new(&self.env, &self.contract_id)
+            .with_source_account(&admin)
+            .deny_req(
+                &Signature::Invoker,
+                &client_id,
+                &BigInt::from_u32(&self.env, 0),
+            );
+    }
+
+    fn approve_request(&self, admin: &soroban_sdk::AccountId, client_id: Identifier) {
+        CarRentalContractClient::new(&self.env, &self.contract_id)
+            .with_source_account(&admin)
+            .appr_req(
+                &Signature::Invoker,
+                &client_id,
+                &BigInt::from_u32(&self.env, 0),
+            );
+    }
+
+    fn add_car(&self, admin: &soroban_sdk::AccountId, plate: &str, car_data: CarDataKey) {
+        CarRentalContractClient::new(&self.env, &self.contract_id)
+            .with_source_account(&admin)
+            .add_car(
+                &Signature::Invoker,
+                &BigInt::from_u32(&self.env, 0),
+                &plate.into_val(&self.env),
+                &car_data.model,
+                &car_data.color,
+                &car_data.horse,
+            );
+    }
+
+    fn remove_car(&self, admin: &soroban_sdk::AccountId, plate: &str) {
+        CarRentalContractClient::new(&self.env, &self.contract_id)
+            .with_source_account(&admin)
+            .remove_car(
+                &Signature::Invoker,
+                &BigInt::from_u32(&self.env, 0),
+                &plate.into_val(&self.env),
+            );
+    }
+
+    fn deny_drop(&self, admin: &soroban_sdk::AccountId, plate: &str) {
+        CarRentalContractClient::new(&self.env, &self.contract_id)
+            .with_source_account(&admin)
+            .deny_drop(
+                &Signature::Invoker,
+                &BigInt::from_u32(&self.env, 0),
+                &plate.into_val(&self.env),
+            );
+    }
+
+    fn accept_drop(&self, admin: &soroban_sdk::AccountId, plate: &str) {
+        CarRentalContractClient::new(&self.env, &self.contract_id)
+            .with_source_account(&admin)
+            .accpt_drop(
+                &Signature::Invoker,
+                &BigInt::from_u32(&self.env, 0),
+                &plate.into_val(&self.env),
+            );
+    }
+
+    // Client methods (using Ed25519 Signature)
+    fn open_request(
+        &self,
+        user_id: Identifier,
+        user_sign: &(impl soroban_auth::testutils::ed25519::Identifier
+              + soroban_sdk::testutils::ed25519::Sign<
+            soroban_auth::SignaturePayload,
+            Signature = [u8; 64],
+        > + Debug),
+    ) {
+        let nonce = self.nonce(&user_id);
+        let sig = soroban_auth::testutils::ed25519::sign(
+            &self.env,
+            user_sign,
+            &self.contract_id,
+            symbol!("open_req"),
+            (&user_id, &nonce),
+        );
+        CarRentalContractClient::new(&self.env, &self.contract_id).open_req(&sig, &nonce);
+    }
+
+    fn reserve_car(
+        &self,
+        user_id: Identifier,
+        user_sign: &(impl soroban_auth::testutils::ed25519::Identifier
+              + soroban_sdk::testutils::ed25519::Sign<
+            soroban_auth::SignaturePayload,
+            Signature = [u8; 64],
+        > + Debug),
+        plate: &str,
+    ) {
+        let nonce = self.nonce(&user_id);
+        let sig = soroban_auth::testutils::ed25519::sign(
+            &self.env,
+            user_sign,
+            &self.contract_id,
+            symbol!("resrve_car"),
+            (&user_id, &nonce),
+        );
+        CarRentalContractClient::new(&self.env, &self.contract_id).resrve_car(
+            &sig,
+            &nonce,
+            &plate.into_val(&self.env),
+        );
+    }
+
+    fn take_car(
+        &self,
+        user_id: Identifier,
+        user_sign: &(impl soroban_auth::testutils::ed25519::Identifier
+              + soroban_sdk::testutils::ed25519::Sign<
+            soroban_auth::SignaturePayload,
+            Signature = [u8; 64],
+        > + Debug),
+        plate: &str,
+    ) {
+        let nonce = self.nonce(&user_id);
+        let sig = soroban_auth::testutils::ed25519::sign(
+            &self.env,
+            user_sign,
+            &self.contract_id,
+            symbol!("take_car"),
+            (&user_id, &nonce),
+        );
+        CarRentalContractClient::new(&self.env, &self.contract_id).take_car(
+            &sig,
+            &nonce,
+            &plate.into_val(&self.env),
+        );
+    }
+
+    fn drop_car(
+        &self,
+        user_id: Identifier,
+        user_sign: &(impl soroban_auth::testutils::ed25519::Identifier
+              + soroban_sdk::testutils::ed25519::Sign<
+            soroban_auth::SignaturePayload,
+            Signature = [u8; 64],
+        > + Debug),
+        plate: &str,
+    ) {
+        let nonce = self.nonce(&user_id);
+        let sig = soroban_auth::testutils::ed25519::sign(
+            &self.env,
+            user_sign,
+            &self.contract_id,
+            symbol!("drop_car"),
+            (&user_id, &nonce),
+        );
+        CarRentalContractClient::new(&self.env, &self.contract_id).drop_car(
+            &sig,
+            &nonce,
+            &plate.into_val(&self.env),
+        );
+    }
+
+    // Public methods
+    pub fn nonce(&self, id: &Identifier) -> BigInt {
+        CarRentalContractClient::new(&self.env, &self.contract_id).nonce(id)
+    }
+
+    pub fn read_client(&self, id: Identifier) -> ClientStatus {
+        return CarRentalContractClient::new(&self.env, &self.contract_id).read_clnt(&id);
+    }
+
+    pub fn read_car(&self, plate: &str) -> CarDataKey {
+        return CarRentalContractClient::new(&self.env, &self.contract_id)
+            .read_car(&plate.into_val(&self.env));
+    }
+
+    pub fn read_rent(&self, plate: &str) -> RentedCarDataKey {
+        return CarRentalContractClient::new(&self.env, &self.contract_id)
+            .read_rent(&plate.into_val(&self.env));
+    }
+
+    pub fn has_rent(&self, plate: &str) -> bool {
+        return CarRentalContractClient::new(&self.env, &self.contract_id)
+            .has_rent(&plate.into_val(&self.env));
+    }
+}
 
 #[test]
-// INIT Success
-fn test() {
+fn test_success() {
     let env: Env = Default::default();
     let contract_id = env.register_contract(None, CarRentalContract);
-    let client = CarRentalContractClient::new(&env, &contract_id);
+
+    let car_rental = CarRental::new(&env, &contract_id);
+
     let admin = env.accounts().generate();
     let (user_1_id, user_1_sign) = soroban_auth::testutils::ed25519::generate(&env);
 
-    // Admin init
-    client.init(&Identifier::Account(admin.clone()));
+    // Admin init the contract
+    car_rental.init(&Identifier::Account(admin.clone()));
 
-    let mut nonce = 0;
-    let mut sig = soroban_auth::testutils::ed25519::sign(
-        &env,
-        &user_1_sign,
-        &contract_id,
-        symbol!("open_req"),
-        (&user_1_id, &nonce),
+    // User 1 opens a request to validate the account
+    car_rental.open_request(user_1_id.clone(), &user_1_sign);
+    // Check if User 1 account status is Pending
+    assert_eq!(
+        car_rental.read_client(user_1_id.clone()),
+        ClientStatus::Pending
     );
-    // Client open a validation request
-    client.open_req(&sig, &nonce);
 
-    let user_1_status = client.read_clnt(&user_1_id);
-    assert_eq!(user_1_status, ClientStatus::Pending);
+    // Admin denies User 1 account validation request
+    car_rental.deny_request(&admin, user_1_id.clone());
+    // Check if User 1 account status is Declined
+    assert_eq!(
+        car_rental.read_client(user_1_id.clone()),
+        ClientStatus::Declined
+    );
 
-    // Admin denies client request
-    client
-        .with_source_account(&admin)
-        .deny_req(&Signature::Invoker, &user_1_id, &0);
+    // Admin approves User 1 account validation request
+    car_rental.approve_request(&admin, user_1_id.clone());
+    assert_eq!(
+        car_rental.read_client(user_1_id.clone()),
+        ClientStatus::Approved
+    );
 
-    let user_1_status = client.read_clnt(&user_1_id);
-    assert_eq!(user_1_status, ClientStatus::Declined);
-
-    // Admin approves client request
-    client
-        .with_source_account(&admin)
-        .appr_req(&Signature::Invoker, &user_1_id, &0);
-
-    let user_1_status = client.read_clnt(&user_1_id);
-    assert_eq!(user_1_status, ClientStatus::Approved);
-
-    let car_data = CarDataKey {
-        model: "Gol quadrado".into_val(&env),
+    // Admin add Car 1
+    let car_1_data = CarDataKey {
+        model: "Volkswagen Gol".into_val(&env),
         horse: 80,
-        color: "Vermelho".into_val(&env),
+        color: "Red".into_val(&env),
     };
-    // Admin adds a new car
-    client.with_source_account(&admin).add_car(
-        &Signature::Invoker,
-        &0,
-        &"IYD8J01".into_val(&env),
-        &car_data.model,
-        &car_data.color,
-        &car_data.horse,
-    );
+    let car_1_plate = "IYD8J01";
+    car_rental.add_car(&admin, &car_1_plate, car_1_data.clone());
+    assert_eq!(car_rental.read_car(&car_1_plate), car_1_data);
 
-    assert_eq!(client.read_car(&"IYD8J01".into_val(&env)), car_data);
-    nonce = nonce + 1;
-    sig = soroban_auth::testutils::ed25519::sign(
-        &env,
-        &user_1_sign,
-        &contract_id,
-        symbol!("resrve_car"),
-        (&user_1_id, &nonce),
-    );
+    // Admin add Car 2
+    let car_2_data = CarDataKey {
+        model: "Honda Civic".into_val(&env),
+        horse: 200,
+        color: "White".into_val(&env),
+    };
+    let car_2_plate = "PGWN112";
+    car_rental.add_car(&admin, &car_2_plate, car_2_data.clone());
+    assert_eq!(car_rental.read_car(&car_2_plate), car_2_data);
 
-    client.resrve_car(&sig, &nonce, &"IYD8J01".into_val(&env));
-
-    let rented_car = client.read_rent(&"IYD8J01".into_val(&env));
+    // Client reserves Car 1
+    car_rental.reserve_car(user_1_id.clone(), &user_1_sign, &car_1_plate);
+    let mut rented_car = car_rental.read_rent(&car_1_plate);
     assert_eq!(rented_car.status, RentedCarStatus::Reserved);
+    assert_eq!(rented_car.renter, user_1_id.clone());
 
-    nonce = nonce + 1;
-
-    sig = soroban_auth::testutils::ed25519::sign(
-        &env,
-        &user_1_sign,
-        &contract_id,
-        symbol!("take_car"),
-        (&user_1_id, &nonce),
-    );
-
-    client.take_car(&sig, &nonce, &"IYD8J01".into_val(&env));
-
-    let rented_car = client.read_rent(&"IYD8J01".into_val(&env));
+    // Client take the Car 1
+    car_rental.take_car(user_1_id.clone(), &user_1_sign, &car_1_plate);
+    rented_car = car_rental.read_rent(&car_1_plate);
     assert_eq!(rented_car.status, RentedCarStatus::Rented);
+    assert_eq!(rented_car.renter, user_1_id.clone());
 
-    // // Admin remove a car
-    // client.with_source_account(&admin).remove_car(
-    //     &Signature::Invoker,
-    //     &0,
-    //     &"IYD8J01".into_val(&env),
-    // );
+    // Admin remove Car 2
+    car_rental.remove_car(&admin, &car_2_plate);
 
-    // Drop car
-    nonce = nonce + 1;
-    sig = soroban_auth::testutils::ed25519::sign(
-        &env,
-        &user_1_sign,
-        &contract_id,
-        symbol!("drop_car"),
-        (&user_1_id, &nonce),
-    );
-
-    client.drop_car(&sig, &nonce, &"IYD8J01".into_val(&env));
-    let rented_car = client.read_rent(&"IYD8J01".into_val(&env));
+    // Client drop Car 1
+    car_rental.drop_car(user_1_id.clone(), &user_1_sign, &car_1_plate);
+    rented_car = car_rental.read_rent(&car_1_plate);
     assert_eq!(rented_car.status, RentedCarStatus::DropReview);
+    assert_eq!(rented_car.renter, user_1_id.clone());
 
-    // Deny drop request
-    client.with_source_account(&admin).deny_drop(
-        &Signature::Invoker,
-        &0,
-        &"IYD8J01".into_val(&env),
-    );
-    let rented_car = client.read_rent(&"IYD8J01".into_val(&env));
+    // Admin denies drop request
+    car_rental.deny_drop(&admin, &car_1_plate);
+    rented_car = car_rental.read_rent(&car_1_plate);
     assert_eq!(rented_car.status, RentedCarStatus::DropReviewDenied);
+    assert_eq!(rented_car.renter, user_1_id.clone());
 
-    // Drop car
-    nonce = nonce + 1;
-    sig = soroban_auth::testutils::ed25519::sign(
-        &env,
-        &user_1_sign,
-        &contract_id,
-        symbol!("drop_car"),
-        (&user_1_id, &nonce),
-    );
-
-    client.drop_car(&sig, &nonce, &"IYD8J01".into_val(&env));
-    let rented_car = client.read_rent(&"IYD8J01".into_val(&env));
+    // Client try drop Car 1 again
+    car_rental.drop_car(user_1_id.clone(), &user_1_sign, &car_1_plate);
+    rented_car = car_rental.read_rent(&car_1_plate);
     assert_eq!(rented_car.status, RentedCarStatus::DropReview);
+    assert_eq!(rented_car.renter, user_1_id.clone());
 
-    // Accept drop request
-    client.with_source_account(&admin).accpt_drop(
-        &Signature::Invoker,
-        &0,
-        &"IYD8J01".into_val(&env),
-    );
-    assert_eq!(client.has_rent(&"IYD8J01".into_val(&env)), false);
+    // Admin accept drop request
+    car_rental.accept_drop(&admin, &car_1_plate);
+    assert_eq!(car_rental.has_rent(&car_1_plate), false);
 }
 
-// INIT Failed (has_admin = True)
+// Init Failed (has_admin = True)
 #[test]
 #[should_panic(expected = "Status(ContractError(4))")]
 fn already_initialized() {
     let env: Env = Default::default();
     let contract_id = env.register_contract(None, CarRentalContract);
-    let client = CarRentalContractClient::new(&env, &contract_id);
+    let car_rental = CarRental::new(&env, &contract_id);
+
     let admin = env.accounts().generate();
-    client.init(&Identifier::Account(admin));
+    car_rental.init(&Identifier::Account(admin.clone()));
 
     let admin_1 = env.accounts().generate();
-    client.init(&Identifier::Account(admin_1));
-
-    //  assert_eq!(has_admin, true);
-    // check if admin ==
+    car_rental.init(&Identifier::Account(admin_1.clone()));
 }
 
 #[test]
@@ -167,36 +320,21 @@ fn already_initialized() {
 fn add_car_fails_already_exists() {
     let env: Env = Default::default();
     let contract_id = env.register_contract(None, CarRentalContract);
-    let client = CarRentalContractClient::new(&env, &contract_id);
+    let car_rental = CarRental::new(&env, &contract_id);
+
     let admin = env.accounts().generate();
-    client.init(&Identifier::Account(admin.clone()));
+
+    car_rental.init(&Identifier::Account(admin.clone()));
+
     let car_data = CarDataKey {
-        model: "Gol quadrado".into_val(&env),
+        model: "Volkswagen Gol".into_val(&env),
         horse: 80,
-        color: "Vermelho".into_val(&env),
+        color: "Red".into_val(&env),
     };
-    client.with_source_account(&(admin.clone())).add_car(
-        &Signature::Invoker,
-        &0,
-        &"IYD8J01".into_val(&env),
-        &car_data.model,
-        &car_data.color,
-        &car_data.horse,
-    );
-    assert_eq!(client.read_car(&"IYD8J01".into_val(&env)), car_data);
-    let car_data = CarDataKey {
-        model: "Gol quadrado".into_val(&env),
-        horse: 80,
-        color: "Vermelho".into_val(&env),
-    };
-    client.with_source_account(&admin).add_car(
-        &Signature::Invoker,
-        &0,
-        &"IYD8J01".into_val(&env),
-        &car_data.model,
-        &car_data.color,
-        &car_data.horse,
-    );
+    let car_plate = "IYD8J01";
+
+    car_rental.add_car(&admin, &car_plate, car_data.clone());
+    car_rental.add_car(&admin, &car_plate, car_data.clone());
 }
 
 #[test]
@@ -204,15 +342,13 @@ fn add_car_fails_already_exists() {
 fn remove_car_fails_no_exist() {
     let env: Env = Default::default();
     let contract_id = env.register_contract(None, CarRentalContract);
-    let client = CarRentalContractClient::new(&env, &contract_id);
-    let admin = env.accounts().generate();
-    client.init(&Identifier::Account(admin.clone()));
+    let car_rental = CarRental::new(&env, &contract_id);
 
-    client.with_source_account(&admin).remove_car(
-        &Signature::Invoker,
-        &0,
-        &"IYD8J01".into_val(&env),
-    );
+    let admin = env.accounts().generate();
+
+    car_rental.init(&Identifier::Account(admin.clone()));
+
+    car_rental.remove_car(&admin, &"IYD8J01");
 }
 
 #[test]
@@ -220,11 +356,12 @@ fn remove_car_fails_no_exist() {
 fn take_car_fails_car_not_rented() {
     let env: Env = Default::default();
     let contract_id = env.register_contract(None, CarRentalContract);
-    let client = CarRentalContractClient::new(&env, &contract_id);
-    let admin = env.accounts().generate();
-    client.init(&Identifier::Account(admin.clone()));
+    let car_rental = CarRental::new(&env, &contract_id);
 
-    client
-        .with_source_account(&admin)
-        .take_car(&Signature::Invoker, &0, &"IYD8J01".into_val(&env));
+    let admin = env.accounts().generate();
+    let (user_1_id, user_1_sign) = soroban_auth::testutils::ed25519::generate(&env);
+
+    car_rental.init(&Identifier::Account(admin.clone()));
+
+    car_rental.take_car(user_1_id.clone(), &user_1_sign, &"IYD8J01");
 }
