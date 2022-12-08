@@ -1,10 +1,10 @@
 #![cfg(test)]
-
 use super::*;
-
-use soroban_auth::Identifier;
+use soroban_auth::{Identifier, Signature};
+use crate::contract::CarRentalContractClient;
+use crate::storage_types::{CarDataKey, ClientStatus, RentedCarStatus};
 use soroban_sdk::{symbol, testutils::Accounts, Env, IntoVal};
-
+use crate::contract::CarRentalContract;
 #[test]
 // INIT Success
 fn test() {
