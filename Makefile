@@ -8,15 +8,18 @@ CONVERT_PK_CLIENT=$(shell cargo run --manifest-path aux/Cargo.toml --bin convert
 IDENTIFIER_CLIENT='{"object":{"vec":[{"symbol":"Account"},{"object":{"accountId":{"publicKeyTypeEd25519":$(PUBLIC_KEY_ED_CLIENT)}}}]}}'
 
 SOROBAN_DEPLOY=$(shell soroban deploy --wasm $(CONTRACT_WASM_TARGET) --secret-key $(SECRET_KEY) --rpc-url $(RPC_URL) --network-passphrase $(SECRET_PHRASE))
+SOROBAN_READ_CAR='$(shell soroban invoke --id $(CONTRACT_ID) --secret-key $(SECRET_KEY) --rpc-url $(RPC_URL) --network-passphrase $(SECRET_PHRASE) --fn read_car --arg "$(shell $(HEX_CONVERT) $(PLATE))")'
+
 HEX_CONVERT=cargo run --manifest-path aux/Cargo.toml --bin hex_convert
+CAR_BYTES_CONVERT=cargo run --manifest-path aux/Cargo.toml --bin car_bytes_convert
 
 CHECK_CONTRACT_ID = $(if $(value $(1)),,$(shell echo CONTRACT_ID=$(SOROBAN_DEPLOY)  >> .env))
 CHECK_CONVERT_PK = $(if $(value $(1)),,$(shell 	echo PUBLIC_KEY_ED=$(CONVERT_PK) >> .env))
 
-friend_bot:
+friendbot:
 	curl "https://friendbot-futurenet.stellar.org/?addr=$(PUBLIC_KEY)"
 
-friend_local:
+friendbot_local:
 	curl "http://localhost:8000/friendbot?addr=$(PUBLIC_KEY)"
 
 build_contract:
@@ -27,7 +30,6 @@ convert_pk:
 
 convert_pk_client:
 	$(eval PUBLIC_KEY_ED_CLIENT=$(CONVERT_PK_CLIENT))
-
 
 deploy: convert_pk
 	$(call CHECK_CONTRACT_ID,CONTRACT_ID)
@@ -65,13 +67,8 @@ remove_car:
 		
 
 read_car:
-	soroban invoke \
-		--id $(CONTRACT_ID) \
-		--secret-key $(SECRET_KEY) \
-		--rpc-url $(RPC_URL) \
-		--network-passphrase $(SECRET_PHRASE) \
-		--fn read_car \
-		--arg "$(shell $(HEX_CONVERT) $(PLATE))"
+	$(eval CAR_DATA := $(SOROBAN_READ_CAR))
+	@echo $(shell $(CAR_BYTES_CONVERT) $(CAR_DATA)) 
 
 open_req:
 	soroban invoke \
