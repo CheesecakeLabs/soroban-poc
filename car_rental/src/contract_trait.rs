@@ -27,4 +27,6 @@ pub trait CarRentalTrait {
     fn nonce(env: Env, identifier: Identifier) -> BigInt;
     fn read_rent(env: Env, plate: Bytes) -> RentedCarDataKey;
     fn has_rent(env: Env, plate: Bytes) -> bool;
+    fn set_admin(env: Env, admin: Signature, nonce: BigInt, new_admin: Identifier);
+    fn read_admin(env: Env) -> Identifier;
 }

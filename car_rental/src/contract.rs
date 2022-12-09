@@ -1,9 +1,9 @@
 use crate::contract_trait::CarRentalTrait;
 use crate::errors::Error;
 use crate::metadata::{
-    check_admin, has_admin, has_car, has_rented_car, is_client_authorized, read_car, read_client,
-    read_nonce, read_rented_car, remove_car, remove_rented_car, verify_and_consume_nonce,
-    write_admin, write_car, write_client, write_rented_car,
+    check_admin, has_admin, has_car, has_rented_car, is_client_authorized, read_admin, read_car,
+    read_client, read_nonce, read_rented_car, remove_car, remove_rented_car,
+    verify_and_consume_nonce, write_admin, write_car, write_client, write_rented_car,
 };
 use crate::storage_types::{CarDataKey, ClientStatus, RentedCarDataKey, RentedCarStatus};
 use soroban_auth::verify;
@@ -227,6 +227,15 @@ impl CarRentalTrait for CarRentalContract {
         }
     }
 
+    fn set_admin(env: Env, admin: Signature, nonce: BigInt, new_admin: Identifier) {
+        check_admin(&env, &admin);
+        verify_and_consume_nonce(&env, &admin, &nonce);
+
+        let admin_id = admin.identifier(&env);
+        verify(&env, &admin, symbol!("set_admin"), (admin_id, nonce));
+        write_admin(&env, new_admin);
+    }
+
     fn read_clnt(env: Env, client: Identifier) -> ClientStatus {
         // Todo Check if client exist
         read_client(&env, client)
@@ -244,6 +253,11 @@ impl CarRentalTrait for CarRentalContract {
     fn read_rent(env: Env, plate: Bytes) -> RentedCarDataKey {
         //  read rented car
         read_rented_car(&env, &plate)
+    }
+
+    fn read_admin(env: Env) -> Identifier {
+        //  read rented car
+        read_admin(&env)
     }
 
     fn has_rent(env: Env, plate: Bytes) -> bool {

@@ -85,6 +85,16 @@ impl CarRental {
             );
     }
 
+    pub fn set_admin(&self, admin: &soroban_sdk::AccountId, new_admin: Identifier) {
+        CarRentalContractClient::new(&self.env, &self.contract_id)
+            .with_source_account(&admin)
+            .set_admin(
+                &Signature::Invoker,
+                &BigInt::from_u32(&self.env, 0),
+                &new_admin,
+            );
+    }
+
     // Client methods (using Ed25519 Signature)
     pub fn open_request(
         &self,
@@ -184,6 +194,10 @@ impl CarRental {
     // Public methods
     pub fn nonce(&self, id: &Identifier) -> BigInt {
         CarRentalContractClient::new(&self.env, &self.contract_id).nonce(id)
+    }
+
+    pub fn read_admin(&self) -> Identifier {
+        return CarRentalContractClient::new(&self.env, &self.contract_id).read_admin();
     }
 
     pub fn read_client(&self, id: Identifier) -> ClientStatus {

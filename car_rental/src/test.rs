@@ -164,3 +164,23 @@ fn take_car_fails_car_not_rented() {
 
     car_rental.take_car(user_1_id.clone(), &user_1_sign, &"IYD8J01");
 }
+
+#[test]
+fn test_change_admin_successfully() {
+    let env: Env = Default::default();
+    let contract_id = env.register_contract(None, CarRentalContract);
+    let car_rental = CarRental::new(&env, &contract_id);
+
+    let admin = env.accounts().generate();
+    let new_admin_1 = env.accounts().generate();
+    let (new_admin_2_id, _new_admin_2_sign) = soroban_auth::testutils::ed25519::generate(&env);
+
+    car_rental.init(&Identifier::Account(admin.clone()));
+    car_rental.set_admin(&admin, Identifier::Account(new_admin_1.clone()));
+    assert_eq!(
+        car_rental.read_admin(),
+        Identifier::Account(new_admin_1.clone())
+    );
+    car_rental.set_admin(&new_admin_1, new_admin_2_id.clone());
+    assert_eq!(car_rental.read_admin(), new_admin_2_id.clone());
+}
