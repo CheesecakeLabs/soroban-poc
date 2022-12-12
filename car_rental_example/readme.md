@@ -42,17 +42,30 @@ The folder structure is:
     7. Initialized the contract with "make init" to set the contract admin
     8. Use one of the make commands to execute the functions from the contract:
         - make add_car: add car to contract (ADMIN).
+            ex: make add_car PLATE=iyd1010 MODEL=Gol Color=Blue HORSE=72
         - make remove_car: remove car to contract (ADMIN).
+            ex: make remove_car PLATE=iyd1010
         - make read_car: read the car data.
+            ex: make read_car PLATE=iyd1010
         - make open_req: open request to be allowed to reserve a car.
+            ex: make open_req
         - make approve_req: aprove client to reserve a car (ADMIN).
+            ex: make approve_req
         - make deny_req: deny client to reserve a car (ADMIN).
+            ex: make deny_req
         - make read_client: read the client status.
+            ex: make read_client
         - make reserve_car: client reserve a car.
+            ex: make reserve_car PLATE=iyd1010
         - make read_rent: read rent status.
+            ex: make read_rent PLATE=iyd1010
         - make take_car: client take a car (previous reserved).
+            ex: make take_car PLATE=iyd1010
         - make deny_drop: deny  client drop the car (ADMIN).
-        - make accept_drop: accept client drop the car (ADMIN). Remove from rent.
+            ex: make deny_drop PLATE=iyd1010
+        - make accept_drop: accept client drop the car (ADMIN). 
+            ex: make accept_drop PLATE=iyd1010
+        Remove from rent.
 
         
 ## Documentation
