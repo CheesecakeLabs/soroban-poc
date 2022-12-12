@@ -24,6 +24,7 @@ The folder structure is:
 
 ## How to execute
     1. run soroban in localhost: https://soroban.stellar.org/docs/tutorials/deploy-to-local-network
+ ````   
     docker run --rm -it \
   --platform linux/amd64 \
   -p 8000:8000 \
@@ -31,6 +32,7 @@ The folder structure is:
   stellar/quickstart:soroban-dev@sha256:0993d3350148af6ffeab5dc8f0b835236b28dade6dcae77ff8a09317162f768d \
   --standalone \
   --enable-soroban-rpc
+  ````
 
     2. All the executions and invokes to soroban network and contract are inside make file. The next steps are executed using makefile.
     3. Complete the .env
@@ -57,7 +59,7 @@ The folder structure is:
 
 [Extra documentation](https://cheesecakelabs.atlassian.net/wiki/spaces/TTO/pages/2865266803/Soroban)
 
-![Flow examples](https://github.com/CheesecakeLabs/soroban-poc/car_rental_example/contract_flows.png)
+![Flow examples](contract_flows.png)
     
 ## Authors
 
