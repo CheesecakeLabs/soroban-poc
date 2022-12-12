@@ -1,8 +1,9 @@
 use soroban_sdk::{contracterror};
-
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
+
+// This enums is used to define the errors that can be returned by the contract.
 pub enum Error {
     NotAuthorized = 1,
     NonceShouldBeZero = 2,

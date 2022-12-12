@@ -1,3 +1,4 @@
+#![cfg(any(test, feature = "testutils"))]
 use crate::contract::CarRentalContractClient;
 use crate::storage_types::{CarDataKey, ClientStatus, RentedCarDataKey};
 use core::fmt::Debug;
@@ -120,7 +121,7 @@ impl CarRental {
         &self,
         user_id: Identifier,
         user_sign: &(impl soroban_auth::testutils::ed25519::Identifier
-              + soroban_sdk::testutils::ed25519::Sign<
+              + soroban_auth::testutils::ed25519::Sign<
             soroban_auth::SignaturePayload,
             Signature = [u8; 64],
         > + Debug),
@@ -199,6 +200,7 @@ impl CarRental {
     pub fn read_admin(&self) -> Identifier {
         return CarRentalContractClient::new(&self.env, &self.contract_id).read_admin();
     }
+
 
     pub fn read_client(&self, id: Identifier) -> ClientStatus {
         return CarRentalContractClient::new(&self.env, &self.contract_id).read_clnt(&id);

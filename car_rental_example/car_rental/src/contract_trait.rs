@@ -1,8 +1,13 @@
 use crate::storage_types::{CarDataKey, ClientStatus, RentedCarDataKey};
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{BigInt, Bytes, Env};
+
+/*
+This trait represents the basic structure of this contract.
+It's function implementation are defined at file contract.
+Every function (fn) that contains ADMIN EXPECTED means it's necessary the admin to execute it (admin signature).
+*/
 pub trait CarRentalTrait {
-    /// # Admin Flow
     fn init(env: Env, admin: Identifier);
     fn add_car(
         env: Env,
