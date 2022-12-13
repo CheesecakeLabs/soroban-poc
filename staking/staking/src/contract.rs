@@ -2,6 +2,7 @@
 
 // Tips:
 // Get the current timestamp: env.ledger().timestamp();
+// Get the current user with: let invoker = e.invoker().into();
 
 use crate::errors::Error;
 use crate::metadata::{
@@ -18,18 +19,15 @@ pub trait StakingTrait {
     fn initialize(e: Env, staking_token_id: BytesN<32>, rewards_token_id: BytesN<32>, rate: u64);
 
     // Deposits tokens into this contract
-    // user: Signature of the user who wants to make the stake
     // amount: how much to stake
-    fn stake(e: Env, user: Signature, amount: u64);
+    fn stake(e: Env, amount: u64);
 
     // Withdraw tokens from this contract
-    // user: Signature of the user who wants to make the withdraw
     // amount: how much to withdraw
-    fn withdraw(e: Env, user: Signature, amount: u64);
+    fn withdraw(e: Env, amount: u64);
 
     // User claims their tokens
-    // user: Signature of the user who wants to claims
-    fn claim_rwrd(e: Env, user: Signature);
+    fn claim_rwrd(e: Env);
 
     // How much reward a user has eanerd
     // user: Identifier of the user
@@ -54,11 +52,11 @@ impl StakingTrait for Staking {
         write_rewards_token(&e, rewards_token_id);
     }
 
-    fn stake(e: Env, user: Signature, amount: u64) {}
+    fn stake(e: Env, amount: u64) {}
 
-    fn withdraw(e: Env, user: Signature, amount: u64) {}
+    fn withdraw(e: Env, amount: u64) {}
 
-    fn claim_rwrd(e: Env, user: Signature) {}
+    fn claim_rwrd(e: Env) {}
 
     fn earned(e: Env, user: Identifier) -> u64 {
         return 0;
