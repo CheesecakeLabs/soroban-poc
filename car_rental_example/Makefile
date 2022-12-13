@@ -16,6 +16,8 @@ CAR_BYTES_CONVERT=cargo run --manifest-path aux/Cargo.toml --bin car_bytes_conve
 CHECK_CONTRACT_ID = $(if $(value $(1)),,$(shell echo CONTRACT_ID=$(SOROBAN_DEPLOY)  >> .env))
 CHECK_CONVERT_PK = $(if $(value $(1)),,$(shell 	echo PUBLIC_KEY_ED=$(CONVERT_PK) >> .env))
 
+doc:
+	cargo doc --open --manifest-path car_rental/Cargo.toml 
 friendbot:
 	curl "https://friendbot-futurenet.stellar.org/?addr=$(PUBLIC_KEY)"
 
@@ -23,7 +25,7 @@ friendbot_local:
 	curl "http://localhost:8000/friendbot?addr=$(PUBLIC_KEY)"
 
 build_contract:
-	cargo build ---patmanifesth car_rental/Cargo.toml --target wasm32-unknown-unknown --release
+	cargo build --manifest-path car_rental/Cargo.toml --target wasm32-unknown-unknown --release
 
 convert_pk:
 	$(call CHECK_CONVERT_PK,PUBLIC_KEY_ED)
