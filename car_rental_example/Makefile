@@ -23,7 +23,7 @@ friendbot_local:
 	curl "http://localhost:8000/friendbot?addr=$(PUBLIC_KEY)"
 
 build_contract:
-	cargo build --manifest-path car_rental/Cargo.toml --target wasm32-unknown-unknown --release
+	cargo build ---patmanifesth car_rental/Cargo.toml --target wasm32-unknown-unknown --release
 
 convert_pk:
 	$(call CHECK_CONVERT_PK,PUBLIC_KEY_ED)

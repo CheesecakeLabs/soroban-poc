@@ -3,6 +3,8 @@ use crate::storage_types::{CarDataKey, ClientStatus, DataKey, RentedCarDataKey};
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{panic_with_error, BigInt, Bytes, Env};
 
+// This file contains all the functions from the contract to access and write in storage.
+
 pub fn write_client(env: &Env, client: Identifier, status: ClientStatus) {
     env.data().set(DataKey::Client(client), status)
 }
@@ -77,6 +79,9 @@ pub fn read_nonce(env: &Env, id: &Identifier) -> BigInt {
         .unwrap()
 }
 
+
+
+// verify if the nonce is as expected by the contract and increment it
 pub fn verify_and_consume_nonce(env: &Env, auth: &Signature, expected_nonce: &BigInt) {
     match auth {
         Signature::Invoker => {
