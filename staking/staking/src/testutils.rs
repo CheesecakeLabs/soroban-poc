@@ -19,12 +19,21 @@ impl StakingTest {
         &self,
         staking_token_id: BytesN<32>,
         rewards_token_id: BytesN<32>,
-        rate: u64,
+        rate: i128,
     ) {
         StakingClient::new(&self.env, &self.contract_id).initialize(
             &staking_token_id,
             &rewards_token_id,
             &rate,
         );
+    }
+
+    pub fn stake(&self, amount: i128) {
+        StakingClient::new(&self.env, &self.contract_id).stake(&amount);
+    }
+
+
+    pub fn rd_supply(&self) -> i128 {
+        StakingClient::new(&self.env, &self.contract_id).rd_supply()
     }
 }

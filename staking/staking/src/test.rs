@@ -2,6 +2,7 @@
 use crate::contract::{token, Staking};
 use crate::testutils::StakingTest;
 
+use crate::contract::StakingClient;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{testutils::Accounts, AccountId, BytesN, Env, IntoVal};
 use token::{Client as TokenClient, TokenMetadata};
@@ -44,13 +45,12 @@ fn test_success() {
     let (rwrd_token_id, rwrd_token) =
         create_token_contract(&e, &rwrd_token_admin, &"Reward", &"RWRD", 8);
 
-    let contract_id = e.register_contract(None, Staking);
-    let staking = StakingTest::new(&e, &contract_id);
+        let contract_id = e.register_contract(None, Staking);
+        let staking = StakingClient::new(&e, &contract_id);
     let staking_id = Identifier::Contract(contract_id.clone());
 
     // Start the staking contract
-    staking.initialize(stk_token_id, rwrd_token_id, 100);
-
+    staking.initialize(&stk_token_id, &rwrd_token_id, &100);
     // Users approve the contract to transfer their Staking tokens
     stk_token
         .with_source_account(&user1)
@@ -66,4 +66,38 @@ fn test_success() {
         &staking_id,
         &1000000,
     );
+    // Reward token admin mint some tokens for the contract
+    rwrd_token.with_source_account(&rwrd_token_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &staking_id,
+        &1000000,
+    );
+
+    stk_token
+        .with_source_account(&stk_token_admin)
+        .mint(&Signature::Invoker, &0, &user1_id, &205);
+
+    let amount = 200;
+    staking.with_source_account(&user1).stake(&amount);
+    let total_supply = staking.rd_supply();
+    assert_eq!(total_supply, amount);
+    let balance = staking.rd_balance(&user1_id);
+    assert_eq!(balance, amount);
+
+    staking.with_source_account(&user1).withdraw(&amount);
+    let total_supply = staking.rd_supply();
+    assert_eq!(total_supply, 0);
+    let balance = staking.rd_balance(&user1_id);
+    assert_eq!(balance, 0);
+
+}
+
+#[test]
+#[should_panic(expected = "Status(ContractError(2))")]
+fn test_stake_amount_invalid() {
+    let e: Env = Default::default();
+    let contract_id = e.register_contract(None, Staking);
+    let staking = StakingTest::new(&e, &contract_id);
+    staking.stake(-20);
 }
