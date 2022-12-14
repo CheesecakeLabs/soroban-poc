@@ -2,6 +2,7 @@ use soroban_sdk::{contracttype};
 use soroban_auth::{Identifier};
 use soroban_sdk::{Bytes};
 
+// This file contains all the storage variable types.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CarDataKey {

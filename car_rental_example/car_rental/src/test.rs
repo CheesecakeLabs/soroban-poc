@@ -165,6 +165,7 @@ fn take_car_fails_car_not_rented() {
     car_rental.take_car(user_1_id.clone(), &user_1_sign, &"IYD8J01");
 }
 
+
 #[test]
 fn test_change_admin_successfully() {
     let env: Env = Default::default();
