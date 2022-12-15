@@ -90,6 +90,10 @@ impl StakingTrait for Staking {
 
         let invoker = &e.invoker();
 
+        if amount > get_balance(&e, invoker.clone().into()) {
+            panic_with_error!(&e, Error::InsufficientBalance)
+        }
+
         update_reward(&e, invoker.clone().into());
 
         decrease_total_supply(&e, amount);

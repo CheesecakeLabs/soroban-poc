@@ -6,4 +6,5 @@ use soroban_sdk::contracterror;
 pub enum Error {
     AlreadyInitialized = 1,
     AmountMustBeGreaterThanZero = 2,
+    InsufficientBalance = 3,
 }
