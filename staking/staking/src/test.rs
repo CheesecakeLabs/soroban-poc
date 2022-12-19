@@ -40,6 +40,24 @@ fn updates_staking_contract_time(e: &Env, contract_id: BytesN<32>, time: u64) ->
 }
 
 #[test]
+#[should_panic(expected = "Status(ContractError(1))")]
+fn already_initialized_error() {
+    let e: Env = Default::default();
+
+    let stk_token_admin = e.accounts().generate();
+    let rwrd_token_admin = e.accounts().generate();
+
+    let (stk_token_id, _) = create_token_contract(&e, &stk_token_admin, &"Staking", &"STK", 8);
+    let (rwrd_token_id, _) = create_token_contract(&e, &rwrd_token_admin, &"Reward", &"RWRD", 8);
+
+    let contract_id = e.register_contract(None, Staking);
+    let staking = updates_staking_contract_time(&e, contract_id.clone(), 0);
+
+    // Start the staking contract twice
+    staking.initialize(&stk_token_id, &rwrd_token_id, &100);
+    staking.initialize(&stk_token_id, &rwrd_token_id, &100);
+}
+#[test]
 fn test_success() {
     let e: Env = Default::default();
 
@@ -221,4 +239,35 @@ fn test_success() {
     assert_eq!(stk_token.balance(&user1_id), 1000);
     assert_eq!(stk_token.balance(&user2_id), 5000);
     assert_eq!(stk_token.balance(&user3_id), 2000);
+}
+
+#[test]
+#[should_panic(expected = "Status(ContractError(2))")]
+fn check_amount() {
+    let e: Env = Default::default();
+
+    let stk_token_admin = e.accounts().generate();
+    let rwrd_token_admin = e.accounts().generate();
+    let user1 = e.accounts().generate();
+    let user2 = e.accounts().generate();
+    let user3 = e.accounts().generate();
+    let user1_id = Identifier::Account(user1.clone());
+    let user2_id = Identifier::Account(user2.clone());
+    let user3_id = Identifier::Account(user3.clone());
+
+    let (stk_token_id, _) = create_token_contract(&e, &stk_token_admin, &"Staking", &"STK", 8);
+    let (rwrd_token_id, _) = create_token_contract(&e, &rwrd_token_admin, &"Reward", &"RWRD", 8);
+
+    let contract_id = e.register_contract(None, Staking);
+    let staking = updates_staking_contract_time(&e, contract_id.clone(), 0);
+
+    // Start the staking contract
+    staking.initialize(&stk_token_id, &rwrd_token_id, &0);
+
+    // Check the earnings
+    assert_eq!(staking.earned(&user1_id), 0);
+    assert_eq!(staking.earned(&user2_id), 0);
+    assert_eq!(staking.earned(&user3_id), 0);
+
+    staking.with_source_account(&user1.clone()).stake(&-100);
 }
