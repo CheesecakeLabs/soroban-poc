@@ -6,11 +6,11 @@ use soroban_sdk::contracttype;
 pub enum DataKey {
     StakingTkn,           // BytesN<32>
     RewardsTkn,           // BytesN<32>
-    RewardRate,           // u64
-    TotSupply,            // u64
+    RewardRate,           // i128
+    TotSupply,            // i128
     LastUpdate,           // u64
-    RwrdStored,           // u64
-    Balances(Identifier), // u64
-    Rewards(Identifier),  // u64
-    RwrdPaid(Identifier), // u64
+    RwrdStored,           // i128, Reward per Token Stored
+    Balances(Identifier), // i128
+    Rewards(Identifier),  // i128
+    RwrdPaid(Identifier), // i128, User Reward per Token Paid
 }
