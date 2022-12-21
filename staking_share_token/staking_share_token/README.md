@@ -1,1 +1,1 @@
-![Test Diagram example](diagrams/staking_share_diagram.svg)
+![Test Diagram example](diagrams/staking_share_diagram.png)
