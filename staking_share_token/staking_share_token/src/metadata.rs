@@ -65,7 +65,10 @@ pub fn decrease_total_share(e: &Env, value: i128) {
 }
 
 pub fn read_last_updated(e: &Env) -> u64 {
-    e.storage().get(DataKey::LastUpdate).unwrap_or(Ok(0)).unwrap()
+    e.storage()
+        .get(DataKey::LastUpdate)
+        .unwrap_or(Ok(0))
+        .unwrap()
 }
 
 pub fn write_last_updated(e: &Env, timestamp: u64) {

@@ -3,7 +3,7 @@ use crate::contract::{token, Staking, StakingClient};
 
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
-use soroban_sdk::{ AccountId, BytesN, Env, IntoVal};
+use soroban_sdk::{AccountId, BytesN, Env, IntoVal};
 use token::{Client as TokenClient, TokenMetadata};
 
 fn create_token_contract(
@@ -103,13 +103,13 @@ fn test_success() {
     assert_eq!(share_token.balance(&user2_id), 111803);
 
     assert_eq!(staking.get_rsrvs(), 750);
-    
+
     // Time 100
     // updating to time 100
     updates_staking_contract_time(&e, contract_id.clone(), 100);
     // User 3 makes a deposit 1000 and receives 394598 share tokens
     staking.with_source_account(&user3).stake(&1000);
-    
+
     assert_eq!(stk_token.balance(&user3_id), 0);
     assert_eq!(share_token.balance(&user3_id), 394598);
     assert_eq!(staking.get_rsrvs(), 1850);
@@ -122,7 +122,7 @@ fn test_success() {
     staking.with_source_account(&user1).withdraw();
     assert_eq!(stk_token.balance(&user1_id), 1097);
     assert_eq!(share_token.balance(&user1_id), 0);
-    
+
     assert_eq!(staking.get_stkd(&user2_id), 298);
     assert_eq!(staking.get_stkd(&user3_id), 1054);
     assert_eq!(staking.get_rsrvs(), 1353);
