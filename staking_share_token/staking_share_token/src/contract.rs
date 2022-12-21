@@ -5,8 +5,9 @@
 // Get the current user with: let invoker = e.invoker().into();
 use crate::errors::Error;
 use crate::metadata::{
-    has_rate, increase_total_share, increase_total_supply, read_share_token, read_staking_token,
-    read_total_share, read_total_supply, write_rate, write_share_token, write_staking_token,
+    decrease_total_share, decrease_total_supply, has_rate, increase_total_share,
+    increase_total_supply, read_share_token, read_staking_token, read_total_share,
+    read_total_supply, write_rate, write_share_token, write_staking_token, read_last_updated, write_last_updated, read_rate
 };
 use num_integer::Roots;
 use soroban_sdk::{contractimpl, panic_with_error, Bytes, BytesN, Env};
@@ -33,9 +34,12 @@ pub trait StakingTrait {
     // Withdraw all tokens from this contract
     fn withdraw(e: Env);
 
+    // Get the total Staking tokens
+    fn get_rsrvs(e: Env) -> i128;
+
     // Get the user balance
     // user: Identifier of the user
-    fn get_rsrvs(e: Env, user: Identifier) -> i128;
+    fn get_stkd(e: Env, user: Identifier) -> i128;
 
     // Get Token Share contract ID
     fn share_id(e: Env) -> BytesN<32>;
@@ -73,6 +77,8 @@ impl StakingTrait for Staking {
     }
 
     fn stake(e: Env, amount: i128) {
+        refresh_total_supply(&e);
+
         let invoker = &e.invoker();
         let token_id = read_staking_token(&e);
         let share_amount = calculate_share_tokens_amount(&e, &amount);
@@ -84,10 +90,37 @@ impl StakingTrait for Staking {
         mint_share_tokens(&e, &invoker.clone().into(), &share_amount)
     }
 
-    fn withdraw(e: Env) {}
+    fn withdraw(e: Env) {
+        refresh_total_supply(&e);
 
-    fn get_rsrvs(e: Env, user: Identifier) -> i128 {
-        return 0;
+        let invoker = &e.invoker();
+
+        let share_amount = share_balance(&e, &invoker.clone().into());
+        let staking_amount = calculate_staking_tokens_amount(&e, &share_amount);
+
+        decrease_total_share(&e, share_amount);
+        decrease_total_supply(&e, staking_amount);  // HOW TO GET THE TOTAL USER TOKEN IN THE CONTRACT?
+        
+        burn_share_tokens(&e, &invoker.clone().into(), &share_amount);
+        transfer_from_contract_to_account(
+            &e,
+            &read_staking_token(&e),
+            &invoker.clone().into(),
+            &staking_amount,
+        )
+    }
+
+    fn get_rsrvs(e: Env) -> i128 {
+        refresh_total_supply(&e);
+
+        read_total_supply(&e)
+    }
+
+    fn get_stkd(e: Env, user: Identifier) -> i128 {
+        refresh_total_supply(&e);
+
+        let share_amount = share_balance(&e, &user);
+        calculate_staking_tokens_amount(&e, &share_amount)
     }
 
     fn share_id(e: Env) -> BytesN<32> {
@@ -111,10 +144,32 @@ fn transfer_from_account_to_contract(
     );
 }
 
+fn transfer_from_contract_to_account(
+    e: &Env,
+    token_id: &BytesN<32>,
+    to: &Identifier,
+    amount: &i128,
+) {
+    let client = token::Client::new(e, token_id);
+    client.xfer(&Signature::Invoker, &0, to, amount);
+}
+
 fn mint_share_tokens(e: &Env, to: &Identifier, amount: &i128) {
     let token_id = read_share_token(&e);
     let client = token::Client::new(e, token_id);
     client.mint(&Signature::Invoker, &0, to, &amount);
+}
+
+fn burn_share_tokens(e: &Env, from: &Identifier, amount: &i128) {
+    let token_id = read_share_token(&e);
+    let client = token::Client::new(e, token_id);
+    client.burn(&Signature::Invoker, &0, from, &amount);
+}
+
+fn share_balance(e: &Env, id: &Identifier) -> i128 {
+    let token_id = read_share_token(&e);
+    let client = token::Client::new(e, token_id);
+    client.balance(id)
 }
 
 fn calculate_share_tokens_amount(e: &Env, amount: &i128) -> i128 {
@@ -131,4 +186,20 @@ fn create_contract(e: &Env) -> BytesN<32> {
     let salt = Bytes::new(e);
     let salt = e.crypto().sha256(&salt);
     e.deployer().with_current_contract(salt).deploy_token()
+}
+
+fn calculate_staking_tokens_amount(e: &Env, share_amount: &i128) -> i128 {
+    let total_supply = read_total_supply(e);
+    let total_share = read_total_share(e);
+    (share_amount*total_supply) / total_share
+}
+
+fn refresh_total_supply(e: &Env) {
+    let time_now = e.ledger().timestamp();
+    let time_diff: i128 = (time_now - read_last_updated(&e)).into();
+
+    let new_tokens = time_diff * read_rate(&e);
+
+    increase_total_supply(&e, new_tokens);
+    write_last_updated(&e, time_now);
 }

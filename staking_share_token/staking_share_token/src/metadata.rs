@@ -13,6 +13,10 @@ pub fn write_rate(e: &Env, rate: i128) {
     e.storage().set(DataKey::Rate, rate);
 }
 
+pub fn read_rate(e: &Env) -> i128 {
+    e.storage().get_unchecked(DataKey::Rate).unwrap()
+}
+
 pub fn has_rate(e: &Env) -> bool {
     let key = DataKey::Rate;
     e.storage().has(key)
@@ -50,4 +54,20 @@ pub fn increase_total_supply(e: &Env, value: i128) {
 
 pub fn increase_total_share(e: &Env, value: i128) {
     write_total_share(&e, read_total_share(&e) + value)
+}
+
+pub fn decrease_total_supply(e: &Env, value: i128) {
+    write_total_supply(&e, read_total_supply(&e) - value)
+}
+
+pub fn decrease_total_share(e: &Env, value: i128) {
+    write_total_share(&e, read_total_share(&e) - value)
+}
+
+pub fn read_last_updated(e: &Env) -> u64 {
+    e.storage().get(DataKey::LastUpdate).unwrap_or(Ok(0)).unwrap()
+}
+
+pub fn write_last_updated(e: &Env, timestamp: u64) {
+    e.storage().set(DataKey::LastUpdate, timestamp);
 }
