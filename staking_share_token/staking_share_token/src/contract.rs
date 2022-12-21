@@ -1,13 +1,9 @@
-// See this contract in Solidity: https://github.com/smartcontractkit/defi-minimal/blob/main/contracts/Staking.sol
-
-// Tips:
-// Get the current timestamp: env.ledger().timestamp();
-// Get the current user with: let invoker = e.invoker().into();
 use crate::errors::Error;
 use crate::metadata::{
     decrease_total_share, decrease_total_supply, has_rate, increase_total_share,
-    increase_total_supply, read_share_token, read_staking_token, read_total_share,
-    read_total_supply, write_rate, write_share_token, write_staking_token, read_last_updated, write_last_updated, read_rate
+    increase_total_supply, read_last_updated, read_rate, read_share_token, read_staking_token,
+    read_total_share, read_total_supply, write_last_updated, write_rate, write_share_token,
+    write_staking_token,
 };
 use num_integer::Roots;
 use soroban_sdk::{contractimpl, panic_with_error, Bytes, BytesN, Env};
@@ -99,14 +95,14 @@ impl StakingTrait for Staking {
         let staking_amount = calculate_staking_tokens_amount(&e, &share_amount);
 
         decrease_total_share(&e, share_amount);
-        decrease_total_supply(&e, staking_amount);  // HOW TO GET THE TOTAL USER TOKEN IN THE CONTRACT?
-        
+        decrease_total_supply(&e, staking_amount); // HOW TO GET THE TOTAL USER TOKEN IN THE CONTRACT?
+
         burn_share_tokens(&e, &invoker.clone().into(), &share_amount);
         transfer_from_contract_to_account(
             &e,
             &read_staking_token(&e),
             &invoker.clone().into(),
-            &staking_amount,
+            &(staking_amount),
         )
     }
 
@@ -178,8 +174,18 @@ fn calculate_share_tokens_amount(e: &Env, amount: &i128) -> i128 {
         let total_share = read_total_share(&e);
         (amount * total_share) / total_supply
     } else {
-        amount.sqrt()
+        get_init_share(&e, amount).sqrt()
     }
+}
+
+fn get_init_share(e: &Env, amount: &i128) -> i128 {
+    amount * 10_i128.pow(get_share_decimals(&e))
+}
+
+fn get_share_decimals(e: &Env) -> u32 {
+    let token_id = read_share_token(&e);
+    let client = token::Client::new(e, token_id);
+    client.decimals()
 }
 
 fn create_contract(e: &Env) -> BytesN<32> {
@@ -191,7 +197,7 @@ fn create_contract(e: &Env) -> BytesN<32> {
 fn calculate_staking_tokens_amount(e: &Env, share_amount: &i128) -> i128 {
     let total_supply = read_total_supply(e);
     let total_share = read_total_share(e);
-    (share_amount*total_supply) / total_share
+    (share_amount * total_supply) / total_share
 }
 
 fn refresh_total_supply(e: &Env) {

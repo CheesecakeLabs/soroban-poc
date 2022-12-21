@@ -62,8 +62,8 @@ fn test_success() {
     staking.initialize(
         &stk_token_id,
         &1,
-        &"Erico".into_val(&e),
-        &"ERC".into_val(&e),
+        &"Share".into_val(&e),
+        &"SHR".into_val(&e),
         &8,
     );
 
@@ -92,38 +92,44 @@ fn test_success() {
         .mint(&Signature::Invoker, &0, &user3_id, &1000);
 
     // Time 0
-    // User 1 stakes 500 tokens and receive 22 share tokens
+    // User 1 stakes 500 tokens and receive 223606 share tokens
     staking.with_source_account(&user1).stake(&500);
     assert_eq!(stk_token.balance(&user1_id), 500);
-    assert_eq!(share_token.balance(&user1_id), 22);
+    assert_eq!(share_token.balance(&user1_id), 223606);
 
-    // User 2 stakes 250 tokens and receive 11 share tokens
+    // User 2 stakes 250 tokens and receive 111803 share tokens
     staking.with_source_account(&user2).stake(&250);
     assert_eq!(stk_token.balance(&user2_id), 2750);
-    assert_eq!(share_token.balance(&user2_id), 11);
+    assert_eq!(share_token.balance(&user2_id), 111803);
 
     assert_eq!(staking.get_rsrvs(), 750);
     
     // Time 100
     // updating to time 100
     updates_staking_contract_time(&e, contract_id.clone(), 100);
-    // User 3 makes a deposit 1000
+    // User 3 makes a deposit 1000 and receives 394598 share tokens
     staking.with_source_account(&user3).stake(&1000);
     
     assert_eq!(stk_token.balance(&user3_id), 0);
-    assert_eq!(share_token.balance(&user3_id), 38);
+    assert_eq!(share_token.balance(&user3_id), 394598);
     assert_eq!(staking.get_rsrvs(), 1850);
-    assert_eq!(staking.get_stkd(&user1_id), 573);
+    assert_eq!(staking.get_stkd(&user1_id), 566);
     assert_eq!(staking.get_stkd(&user2_id), 283);
-    assert_eq!(staking.get_stkd(&user3_id), 1000);
 
     // Time 200
     updates_staking_contract_time(&e, contract_id.clone(), 200);
-    // User 1 withdraw and receives 604 tokens
+    // User 1 withdraw and receives 597 tokens
     staking.with_source_account(&user1).withdraw();
-    assert_eq!(stk_token.balance(&user1_id), 1104);
+    assert_eq!(stk_token.balance(&user1_id), 1097);
     assert_eq!(share_token.balance(&user1_id), 0);
-    assert_eq!(staking.get_stkd(&user2_id), 302);
-    assert_eq!(staking.get_stkd(&user3_id), 1043);
-    assert_eq!(staking.get_rsrvs(), 49);
+    
+    assert_eq!(staking.get_stkd(&user2_id), 298);
+    assert_eq!(staking.get_stkd(&user3_id), 1054);
+    assert_eq!(staking.get_rsrvs(), 1353);
+
+    // Time 200
+    updates_staking_contract_time(&e, contract_id.clone(), 300);
+    assert_eq!(staking.get_stkd(&user2_id), 320);
+    assert_eq!(staking.get_stkd(&user3_id), 1132);
+    assert_eq!(staking.get_rsrvs(), 1453);
 }

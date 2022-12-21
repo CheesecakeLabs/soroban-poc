@@ -1,4 +1,3 @@
-use soroban_auth::Identifier;
 use soroban_sdk::contracttype;
 
 #[derive(Clone)]
@@ -8,6 +7,6 @@ pub enum DataKey {
     ShareTkn,   // BytesN<32>
     Rate,       // i128
     TotSupply,  // i128
-    TotShare,
+    TotShare,   // i128
     LastUpdate, // u64
 }
