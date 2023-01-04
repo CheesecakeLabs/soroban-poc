@@ -17,6 +17,10 @@ pub fn write_payment_token(e: &Env, contract_id: BytesN<32>) {
     e.storage().set(DataKey::PaymentTkn, contract_id);
 }
 
+pub fn read_payment_token(e: &Env) -> BytesN<32>{
+    e.storage().get_unchecked(DataKey::PaymentTkn).unwrap()
+}
+
 pub fn write_bond_token(e: &Env, contract_id: BytesN<32>) {
     e.storage().set(DataKey::BondTkn, contract_id);
 }
@@ -39,6 +43,10 @@ pub fn write_price(e: &Env, price: i128) {
 
 pub fn write_init_time(e: &Env, init_time: u64) {
     e.storage().set(DataKey::InitTime, init_time);
+}
+
+pub fn read_init_time(e: &Env) -> u64 {
+    e.storage().get(DataKey::InitTime).unwrap_or(Ok(0)).unwrap()
 }
 
 pub fn write_end_time(e: &Env, end_time: u64) {

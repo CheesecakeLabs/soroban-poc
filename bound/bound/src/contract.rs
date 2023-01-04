@@ -1,7 +1,8 @@
 use crate::errors::Error;
 use crate::metadata::{
-    check_admin, read_bond_token_id, read_state, write_admin, write_bond_token, write_fee_interval,
-    write_fee_rate, write_init_time, write_payment_token, write_price, write_state,
+    check_admin, read_bond_token_id, read_init_time, read_state, write_admin, write_bond_token,
+    write_end_time, write_fee_interval, write_fee_rate, write_init_time, write_payment_token,
+    write_price, write_state,read_payment_token
 };
 use crate::storage_types::State;
 use soroban_auth::{Identifier, Signature};
@@ -114,16 +115,43 @@ impl BondTrait for Bond {
     }
 
     fn set_end(e: Env, end_timestamp: u64) {
-        // check admin
-        // check state != liquidated
-        // check end_timestamp > initial_timestamp
-        // set end_timestamp
+        check_admin(&e, &Signature::Invoker);
+
+        if read_state(&e) == State::Liquidated {
+            panic_with_error!(&e, Error::AlreadyLiquidated)
+        }
+
+        if read_init_time(&e) > end_timestamp {
+            panic_with_error!(&e, Error::InvalidTimestamp)
+        }
+
+        write_end_time(&e, end_timestamp);
     }
 
     fn withdraw(e: Env, amount: i128) {
-        // check admin
+        check_admin(&e, &Signature::Invoker);
         // check state != liquidated
+        if read_state(&e) == State::Liquidated {
+            panic_with_error!(&e, Error::AlreadyLiquidated)
+        }
+
         // xfer amount to admin address
+        transfer_from_contract_to_account(
+            &e,
+            &read_payment_token(&e),
+            &e.invoker().clone().into(),
+            &amount,
+        )
+
+        
+    }
+
+    fn cash_out(e: Env) {
+        // check state == liquidated
+        // get inkover balance (bond)
+        // calculates balance * price
+        // xfer this amount to invoker (payment tokens)
+        // burn balance from user (bond)
     }
 
     fn en_csh_out(e: Env) {
@@ -144,13 +172,7 @@ impl BondTrait for Bond {
         // set AmountSold = AmountSold + amount
     }
 
-    fn cash_out(e: Env) {
-        // check state == liquidated
-        // get inkover balance (bond)
-        // calculates balance * price
-        // xfer this amount to invoker (payment tokens)
-        // burn balance from user (bond)
-    }
+
 
     fn get_price(e: Env) {
         // check state == available or liquidated
@@ -193,4 +215,30 @@ fn create_bond_token(
 
 fn days_to_seconds(days: u64) -> u64 {
     days * 24 * 60 * 60
+}
+
+fn transfer_from_contract_to_account(
+    e: &Env,
+    token_id: &BytesN<32>,
+    to: &Identifier,
+    amount: &i128,
+) {
+    let client = token::Client::new(e, token_id);
+    client.xfer(&Signature::Invoker, &0, to, amount);
+}
+
+fn transfer_from_account_to_contract(
+    e: &Env,
+    token_id: &BytesN<32>,
+    from: &Identifier,
+    amount: &i128,
+) {
+    let client = token::Client::new(e, token_id);
+    client.xfer_from(
+        &Signature::Invoker,
+        &0,
+        from,
+        &Identifier::Contract(e.current_contract()),
+        &amount,
+    );
 }
