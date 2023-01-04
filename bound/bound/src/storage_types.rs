@@ -6,7 +6,7 @@ pub enum State {
     NoInitiatd,
     Initiated,
     Available,
-    Liquidated,
+    CashOutEn,
 }
 
 #[derive(Clone)]

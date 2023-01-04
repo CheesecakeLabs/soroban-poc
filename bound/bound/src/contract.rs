@@ -1,8 +1,9 @@
 use crate::errors::Error;
 use crate::metadata::{
-    check_admin, read_bond_token_id, read_init_time, read_state, write_admin, write_bond_token,
-    write_end_time, write_fee_interval, write_fee_rate, write_init_time, write_payment_token,
-    write_price, write_state,read_payment_token
+    check_admin, decrease_supply, increase_supply, read_bond_token_id, read_end_time,
+    read_fee_interval, read_fee_rate, read_init_time, read_payment_token, read_price, read_state,
+    read_supply, write_admin, write_bond_token, write_end_time, write_fee_interval, write_fee_rate,
+    write_init_time, write_payment_token, write_price, write_state,
 };
 use crate::storage_types::State;
 use soroban_auth::{Identifier, Signature};
@@ -47,7 +48,7 @@ pub trait BondTrait {
     fn cash_out(e: Env);
 
     // Get current price
-    fn get_price(e: Env);
+    fn get_price(e: Env) -> i128;
 
     // Get Bond Token contract ID
     fn bond_id(e: Env) -> BytesN<32>;
@@ -117,8 +118,8 @@ impl BondTrait for Bond {
     fn set_end(e: Env, end_timestamp: u64) {
         check_admin(&e, &Signature::Invoker);
 
-        if read_state(&e) == State::Liquidated {
-            panic_with_error!(&e, Error::AlreadyLiquidated)
+        if read_state(&e) == State::CashOutEn {
+            panic_with_error!(&e, Error::AlreadyCashOutEn)
         }
 
         if read_init_time(&e) > end_timestamp {
@@ -130,54 +131,94 @@ impl BondTrait for Bond {
 
     fn withdraw(e: Env, amount: i128) {
         check_admin(&e, &Signature::Invoker);
-        // check state != liquidated
-        if read_state(&e) == State::Liquidated {
-            panic_with_error!(&e, Error::AlreadyLiquidated)
+
+        if read_state(&e) == State::CashOutEn {
+            panic_with_error!(&e, Error::AlreadyCashOutEn)
         }
 
-        // xfer amount to admin address
         transfer_from_contract_to_account(
             &e,
             &read_payment_token(&e),
             &e.invoker().clone().into(),
             &amount,
         )
-
-        
     }
 
     fn cash_out(e: Env) {
-        // check state == liquidated
-        // get inkover balance (bond)
-        // calculates balance * price
-        // xfer this amount to invoker (payment tokens)
-        // burn balance from user (bond)
+        if read_state(&e) != State::CashOutEn {
+            panic_with_error!(&e, Error::NotCashOutEn)
+        }
+
+        let invoker: Identifier = e.invoker().into();
+
+        // Get the user Bond Token balance
+        let bond_balance = token_balance(&e, &read_bond_token_id(&e), &invoker.clone());
+        // Calculates amount of payment token
+        let total_payment = bond_balance * current_price(&e);
+        // Decrease supply
+        decrease_supply(&e, bond_balance);
+        // Transfer amount of payment tokens from contract to user
+        transfer_from_contract_to_account(
+            &e,
+            &read_bond_token_id(&e),
+            &invoker.clone(),
+            &total_payment,
+        );
+        // Burn all the Bond tokens from user
+        burn_token(
+            &e,
+            &read_bond_token_id(&e),
+            &Signature::Invoker,
+            &invoker,
+            &bond_balance,
+        )
     }
 
     fn en_csh_out(e: Env) {
         // check admin
+        check_admin(&e, &Signature::Invoker);
         // check state == available
+        if read_state(&e) != State::Available {
+            panic_with_error!(&e, Error::NotAvailable)
+        }
         // check now > end_timestamp
+        if e.ledger().timestamp() < read_end_time(&e) {
+            panic_with_error!(&e, Error::NotCashOutEn)
+        }
         // calculates Amount sold * current price
+        let amount_payment = current_price(&e) * read_supply(&e);
         // check if the contract has this balance of payment tokens
-        // set price = current price
+        let token_balance = token_balance(
+            &e,
+            &read_payment_token(&e),
+            &Identifier::Contract(e.current_contract()),
+        );
+
+        if token_balance < amount_payment {
+            panic_with_error!(&e, Error::NotEnoughTokens)
+        }
+
         // set state = liquidated
+        write_state(&e, State::CashOutEn);
     }
 
     fn buy(e: Env, amount: i128) {
-        // check state == available
-        // calculates amount * current price
-        // xfer_from from invoker to contract (payment tokens)
-        // xfer the amount from contract to user (bond)
-        // set AmountSold = AmountSold + amount
+        if read_state(&e) != State::Available {
+            panic_with_error!(&e, Error::NotAvailable)
+        }
+
+        increase_supply(&e, amount);
+
+        // Total will be the Bond amount multiplied by Bond price
+        let total = current_price(&e) * amount;
+        let invoker: Identifier = e.invoker().into();
+
+        transfer_from_account_to_contract(&e, &read_payment_token(&e), &invoker.clone(), &total);
+        transfer_from_contract_to_account(&e, &read_bond_token_id(&e), &invoker.clone(), &amount);
     }
 
-
-
-    fn get_price(e: Env) {
-        // check state == available or liquidated
-        // if price: return price
-        // return current_price
+    fn get_price(e: Env) -> i128 {
+        current_price(&e)
     }
 
     fn bond_id(e: Env) -> BytesN<32> {
@@ -185,9 +226,20 @@ impl BondTrait for Bond {
     }
 }
 
-fn current_price(e: Env) {
-    // time = (now - initial_timestamp) / fee_interval
-    // return initial_price * (1 + fee_rate / 100) ^ time
+fn current_price(e: &Env) -> i128 {
+    let mut end_time = read_end_time(&e);
+    let now = e.ledger().timestamp();
+
+    if now < end_time {
+        end_time = now;
+    }
+
+    let time = (end_time - read_init_time(&e)) / read_fee_interval(&e);
+    if time == 0 {
+        return read_price(&e);
+    }
+    let fees = 1000 + read_fee_rate(&e);
+    read_price(&e) * (fees.pow(time as u32)) / 1000
 }
 
 fn create_bond_token(
@@ -241,4 +293,14 @@ fn transfer_from_account_to_contract(
         &Identifier::Contract(e.current_contract()),
         &amount,
     );
+}
+
+fn token_balance(e: &Env, token_id: &BytesN<32>, id: &Identifier) -> i128 {
+    let client = token::Client::new(e, token_id);
+    client.balance(id)
+}
+
+fn burn_token(e: &Env, token_id: &BytesN<32>, admin: &Signature, from: &Identifier, amount: &i128) {
+    let client = token::Client::new(e, token_id);
+    client.burn(admin, &0, from, amount);
 }

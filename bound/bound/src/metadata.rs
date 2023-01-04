@@ -17,7 +17,7 @@ pub fn write_payment_token(e: &Env, contract_id: BytesN<32>) {
     e.storage().set(DataKey::PaymentTkn, contract_id);
 }
 
-pub fn read_payment_token(e: &Env) -> BytesN<32>{
+pub fn read_payment_token(e: &Env) -> BytesN<32> {
     e.storage().get_unchecked(DataKey::PaymentTkn).unwrap()
 }
 
@@ -49,6 +49,13 @@ pub fn read_init_time(e: &Env) -> u64 {
     e.storage().get(DataKey::InitTime).unwrap_or(Ok(0)).unwrap()
 }
 
+pub fn read_end_time(e: &Env) -> u64 {
+    e.storage().get(DataKey::EndTime).unwrap_or(Ok(0)).unwrap()
+}
+
+pub fn read_fee_rate(e: &Env) -> i128 {
+    e.storage().get(DataKey::FeeRate).unwrap_or(Ok(0)).unwrap()
+}
 pub fn write_end_time(e: &Env, end_time: u64) {
     e.storage().set(DataKey::EndTime, end_time);
 }
@@ -74,6 +81,28 @@ pub fn read_bond_token_id(e: &Env) -> BytesN<32> {
 
 pub fn read_admin(e: &Env) -> Identifier {
     e.storage().get_unchecked(DataKey::Admin).unwrap()
+}
+
+pub fn read_price(e: &Env) -> i128 {
+    e.storage().get_unchecked(DataKey::Price).unwrap()
+}
+
+pub fn read_supply(e: &Env) -> i128 {
+    e.storage().get_unchecked(DataKey::Supply).unwrap()
+}
+
+pub fn read_fee_interval(e: &Env) -> u64 {
+    e.storage().get_unchecked(DataKey::FeeIntrvl).unwrap()
+}
+
+pub fn increase_supply(e: &Env, supply: i128) {
+    let old_supply = read_supply(&e);
+    write_supply(e, old_supply + supply);
+}
+
+pub fn decrease_supply(e: &Env, supply: i128) {
+    let old_supply = read_supply(&e);
+    write_supply(e, old_supply - supply);
 }
 
 pub fn check_admin(e: &Env, auth: &Signature) {

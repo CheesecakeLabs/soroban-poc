@@ -39,6 +39,61 @@ fn updates_contract_time(e: &Env, contract_id: BytesN<32>, time: u64) -> BondCli
     return BondClient::new(&e, &contract_id);
 }
 
+#[test]
+fn test_success() {
+    let e: Env = Default::default();
+
+    let admin = e.accounts().generate();
+    let admin_id = Identifier::Account(admin.clone());
+    let payment_tkn_admin = e.accounts().generate();
+
+    let user1 = e.accounts().generate();
+    let user2 = e.accounts().generate();
+    let user3 = e.accounts().generate();
+    let user1_id = Identifier::Account(user1.clone());
+    let user2_id = Identifier::Account(user2.clone());
+    let user3_id = Identifier::Account(user3.clone());
+
+    let (payment_tkn_id, payment_tkn) =
+        create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
+
+    let contract_id = e.register_contract(None, Bond);
+    let mut contract = updates_contract_time(&e, contract_id.clone(), 0);
+    let contract_identifier = Identifier::Contract(contract_id.clone());
+
+    // Initialize the contract
+    contract.initialize(
+        &admin_id.clone(),
+        &payment_tkn_id,
+        &"Bond".into_val(&e),
+        &"BND".into_val(&e),
+        &8,
+        &100,
+        &100,
+        &1,
+        &10000,
+    );
+
+    let bond_tkn = TokenClient::new(&e, &contract.bond_id());
+
+    assert_eq!(bond_tkn.balance(&contract_identifier), 10000);
+
+    // Start the contract
+    contract.with_source_account(&admin).start(&0);
+    contract.with_source_account(&admin).set_end(&500000);
+
+    assert_eq!(100, contract.get_price());
+
+    // Update time to
+    contract = updates_contract_time(&e, contract_id.clone(), 87000);
+
+    let price = contract.get_price();
+    assert_eq!(110, price)
+    // User call example
+    // contract
+    //     .with_source_account(&user1)
+    //     .method(&Signature::Invoker);
+}
 
 #[test]
 #[should_panic(expected = "Status(ContractError(5))")]
@@ -78,56 +133,6 @@ fn invalid_timestamp() {
     contract.with_source_account(&admin).set_end(&5);
 }
 
-#[test]
-fn test_success() {
-    let e: Env = Default::default();
-
-    let admin = e.accounts().generate();
-    let admin_id = Identifier::Account(admin.clone());
-    let payment_tkn_admin = e.accounts().generate();
-
-    let user1 = e.accounts().generate();
-    let user2 = e.accounts().generate();
-    let user3 = e.accounts().generate();
-    let user1_id = Identifier::Account(user1.clone());
-    let user2_id = Identifier::Account(user2.clone());
-    let user3_id = Identifier::Account(user3.clone());
-
-    let (payment_tkn_id, payment_tkn) =
-        create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
-
-    let contract_id = e.register_contract(None, Bond);
-    let mut contract = updates_contract_time(&e, contract_id.clone(), 0);
-    let contract_identifier = Identifier::Contract(contract_id.clone());
-
-    // Initialize the contract
-    contract.initialize(
-        &admin_id.clone(),
-        &payment_tkn_id,
-        &"Bond".into_val(&e),
-        &"BND".into_val(&e),
-        &8,
-        &100,
-        &10,
-        &30,
-        &10000,
-    );
-
-    let bond_tkn = TokenClient::new(&e, &contract.bond_id());
-
-    assert_eq!(bond_tkn.balance(&contract_identifier), 10000);
-
-    // Start the contract
-    contract.with_source_account(&admin).start(&0);
-    contract.with_source_account(&admin).set_end(&90);
-
-    // User call example
-    // contract
-    //     .with_source_account(&user1)
-    //     .method(&Signature::Invoker);
-}
-
 // #[test]
 // #[should_panic(expected = "Status(ContractError(1))")]
 // fn already_initialized_error() {}
-
