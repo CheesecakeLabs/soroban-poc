@@ -239,7 +239,7 @@ fn current_price(e: &Env) -> i128 {
         return read_price(&e);
     }
     let fees = 1000 + read_fee_rate(&e);
-    read_price(&e) * (fees.pow(time as u32)) / 1000
+    read_price(&e) * (fees.pow(time as u32)) / 1000_i128.pow(time as u32)
 }
 
 fn create_bond_token(

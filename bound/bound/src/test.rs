@@ -39,6 +39,10 @@ fn updates_contract_time(e: &Env, contract_id: BytesN<32>, time: u64) -> BondCli
     return BondClient::new(&e, &contract_id);
 }
 
+fn days_to_seconds(days: u64) -> u64 {
+    days * 24 * 60 * 60
+}
+
 #[test]
 fn test_success() {
     let e: Env = Default::default();
@@ -57,8 +61,9 @@ fn test_success() {
     let (payment_tkn_id, payment_tkn) =
         create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
 
+    let time = 0;
     let contract_id = e.register_contract(None, Bond);
-    let mut contract = updates_contract_time(&e, contract_id.clone(), 0);
+    let mut contract = updates_contract_time(&e, contract_id.clone(), time);
     let contract_identifier = Identifier::Contract(contract_id.clone());
 
     // Initialize the contract
@@ -69,8 +74,8 @@ fn test_success() {
         &"BND".into_val(&e),
         &8,
         &100,
-        &100,
-        &1,
+        &100, // 100 / 1000 = 0.1 => 10%
+        &30,
         &10000,
     );
 
@@ -80,15 +85,22 @@ fn test_success() {
 
     // Start the contract
     contract.with_source_account(&admin).start(&0);
-    contract.with_source_account(&admin).set_end(&500000);
+    // Set the end date for 10 months from now (assuming 1 month = 30 days)
+    contract
+        .with_source_account(&admin)
+        .set_end(&days_to_seconds(10 * 30));
 
+    // Get current price
     assert_eq!(100, contract.get_price());
 
-    // Update time to
-    contract = updates_contract_time(&e, contract_id.clone(), 87000);
+    // Update time in 1 month
+    contract = updates_contract_time(&e, contract_id.clone(), days_to_seconds(1 * 30));
+    assert_eq!(110, contract.get_price());
 
-    let price = contract.get_price();
-    assert_eq!(110, price)
+    // Update time in 2 months (since start date)
+    contract = updates_contract_time(&e, contract_id.clone(), days_to_seconds(2 * 30));
+    assert_eq!(121, contract.get_price());
+
     // User call example
     // contract
     //     .with_source_account(&user1)

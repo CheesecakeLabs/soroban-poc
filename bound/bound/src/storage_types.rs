@@ -18,7 +18,6 @@ pub enum DataKey {
     BondTkn,    // BytesN<32>
     FeeIntrvl,  // u64
     FeeRate,    // i128
-    InitPrice,  // i128
     Price,      // i128
     InitTime,   // u64
     EndTime,    // u64
