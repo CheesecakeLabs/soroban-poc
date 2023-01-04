@@ -1,7 +1,7 @@
 #![cfg(test)]
 use crate::contract::{token, Bond, BondClient};
 
-use soroban_auth::Identifier;
+use soroban_auth::{Identifier, Signature};
 use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
 use soroban_sdk::{AccountId, BytesN, Env, IntoVal};
 use token::{Client as TokenClient, TokenMetadata};
@@ -66,6 +66,46 @@ fn test_success() {
     let mut contract = updates_contract_time(&e, contract_id.clone(), time);
     let contract_identifier = Identifier::Contract(contract_id.clone());
 
+    // Users approve the contract to transfer their payment tokens
+    payment_tkn.with_source_account(&user1).approve(
+        &Signature::Invoker,
+        &0,
+        &contract_identifier,
+        &100000,
+    );
+    payment_tkn.with_source_account(&user2).approve(
+        &Signature::Invoker,
+        &0,
+        &contract_identifier,
+        &100000,
+    );
+    payment_tkn.with_source_account(&user3).approve(
+        &Signature::Invoker,
+        &0,
+        &contract_identifier,
+        &100000,
+    );
+
+    // Payment token admin mint some tokens for the users
+    payment_tkn.with_source_account(&payment_tkn_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &user1_id,
+        &100000,
+    );
+    payment_tkn.with_source_account(&payment_tkn_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &user2_id,
+        &100000,
+    );
+    payment_tkn.with_source_account(&payment_tkn_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &user3_id,
+        &100000,
+    );
+
     // Initialize the contract
     contract.initialize(
         &admin_id.clone(),
@@ -93,23 +133,40 @@ fn test_success() {
     // Get current price
     assert_eq!(100, contract.get_price());
 
+    // User 1 buy 200 Bond tokens with price 100
+    contract.with_source_account(&user1).buy(&200);
+    assert_eq!(payment_tkn.balance(&user1_id), 80000);
+
     // Update time in 1 month
     contract = updates_contract_time(&e, contract_id.clone(), days_to_seconds(1 * 30));
     assert_eq!(110, contract.get_price());
 
     // Update time in 2 months (since start date)
     contract = updates_contract_time(&e, contract_id.clone(), days_to_seconds(2 * 30));
+
+    // User 2 buy 100 tokens with price 121
+    contract.with_source_account(&user2).buy(&100);
+    assert_eq!(payment_tkn.balance(&user2_id), 87900);
     assert_eq!(121, contract.get_price());
 
-    // User call example
-    // contract
-    //     .with_source_account(&user1)
-    //     .method(&Signature::Invoker);
+    // Update time in 5 months (since start date)
+    contract = updates_contract_time(&e, contract_id.clone(), days_to_seconds(5 * 30));
+
+    // User 3 buy 200 tokens with price 161
+    contract.with_source_account(&user3).buy(&200);
+    assert_eq!(payment_tkn.balance(&user3_id), 67800);
+    assert_eq!(161, contract.get_price());
+
+    // Update time in 12 months (since start date)
+    contract = updates_contract_time(&e, contract_id.clone(), days_to_seconds(12 * 30));
+
+    // Enable cash out
+    //contract.with_source_account(&admin).en_csh_out()
 }
 
 #[test]
 #[should_panic(expected = "Status(ContractError(5))")]
-fn invalid_timestamp() {
+fn invalid_end_timestamp() {
     let e: Env = Default::default();
 
     let admin = e.accounts().generate();

@@ -79,7 +79,7 @@ pub fn read_price(e: &Env) -> i128 {
 }
 
 pub fn read_supply(e: &Env) -> i128 {
-    e.storage().get_unchecked(DataKey::Supply).unwrap()
+    e.storage().get(DataKey::Supply).unwrap_or(Ok(0)).unwrap()
 }
 
 pub fn read_fee_interval(e: &Env) -> u64 {

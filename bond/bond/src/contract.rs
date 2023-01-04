@@ -28,7 +28,6 @@ pub trait BondTrait {
         initial_amount: i128,
     );
 
-    // maybe change this name to something like "turn available" in 10 chars
     // Turn the token available for puchases and set initial timestamp
     fn start(e: Env, initial_timestamp: u64);
 
@@ -175,30 +174,30 @@ impl BondTrait for Bond {
     }
 
     fn en_csh_out(e: Env) {
-        // check admin
         check_admin(&e, &Signature::Invoker);
-        // check state == available
+
         if read_state(&e) != State::Available {
             panic_with_error!(&e, Error::NotAvailable)
         }
-        // check now > end_timestamp
+
+        // Check if end time has passed
         if e.ledger().timestamp() < read_end_time(&e) {
             panic_with_error!(&e, Error::NotCashOutEn)
         }
-        // calculates Amount sold * current price
+
+        // Check if the contract has the amount of payment tokens to
+        // pay the users
         let amount_payment = current_price(&e) * read_supply(&e);
-        // check if the contract has this balance of payment tokens
-        let token_balance = token_balance(
+        let contract_balance = token_balance(
             &e,
             &read_payment_token(&e),
             &Identifier::Contract(e.current_contract()),
         );
 
-        if token_balance < amount_payment {
+        if contract_balance < amount_payment {
             panic_with_error!(&e, Error::NotEnoughTokens)
         }
 
-        // set state = liquidated
         write_state(&e, State::CashOutEn);
     }
 
