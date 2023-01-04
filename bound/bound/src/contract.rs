@@ -1,6 +1,7 @@
 use crate::errors::Error;
 use crate::metadata::{
-    read_state, write_admin, write_bond_token, write_fee_rate, write_payment_token, write_price,
+    read_bond_token_id, read_state, write_admin, write_bond_token, write_fee_interval,
+    write_fee_rate, write_payment_token, write_price, write_state,
 };
 use crate::storage_types::State;
 use soroban_auth::{Identifier, Signature};
@@ -10,7 +11,7 @@ pub mod token {
 }
 use token::{Client as TokenClient, TokenMetadata};
 
-pub trait ContractTrait {
+pub trait BondTrait {
     // Start the contract and create the bond token
     fn initialize(
         e: Env,
@@ -35,22 +36,25 @@ pub trait ContractTrait {
     // Transfer tokens from the contract to the admin
     fn withdraw(e: Env, amount: i128);
 
-    // Makes the token available for claiming
-    fn liquidate(e: Env);
+    // Turn the cash out enabled
+    fn en_csh_out(e: Env);
 
     // Buy tokens
     fn buy(e: Env, amount: i128);
 
-    // Claim tokens
-    fn claim(e: Env);
+    // Cash out tokens
+    fn cash_out(e: Env);
 
     // Get current price
     fn get_price(e: Env);
+
+    // Get Bond Token contract ID
+    fn bond_id(e: Env) -> BytesN<32>;
 }
 
-pub struct Contract;
+pub struct Bond;
 #[contractimpl]
-impl ContractTrait for Contract {
+impl BondTrait for Bond {
     fn initialize(
         e: Env,
         admin: Identifier,
@@ -66,22 +70,20 @@ impl ContractTrait for Contract {
         if read_state(&e) != State::NoInitiatd {
             panic_with_error!(&e, Error::AlreadyInitialized)
         }
+
+        write_state(&e, State::Initiated);
         write_admin(&e, admin.clone());
 
         // Save Payment token address
         write_payment_token(&e, payment_token_id);
         // Create Bond token contract
-        let (bond_id, bond_token) = create_bond_token(
-            &e,
-            &admin,
-            bond_token_name,
-            bond_token_symbol,
-            bond_token_decimals,
-        );
+        let (bond_id, bond_token) =
+            create_bond_token(&e, bond_token_name, bond_token_symbol, bond_token_decimals);
         // Save Bond token address
         write_bond_token(&e, bond_id);
 
-        // TODO: Save fee interval (maybe in seconds?)
+        // Save fee interval (maybe in seconds?)
+        write_fee_interval(&e, days_to_seconds(fee_days_interval));
 
         // Save Bon token fee rate (multiplied by 100)
         write_fee_rate(&e, fee_rate);
@@ -120,7 +122,7 @@ impl ContractTrait for Contract {
         // xfer amount to admin address
     }
 
-    fn liquidate(e: Env) {
+    fn en_csh_out(e: Env) {
         // check admin
         // check state == available
         // check now > end_timestamp
@@ -138,7 +140,7 @@ impl ContractTrait for Contract {
         // set AmountSold = AmountSold + amount
     }
 
-    fn claim(e: Env) {
+    fn cash_out(e: Env) {
         // check state == liquidated
         // get inkover balance (bond)
         // calculates balance * price
@@ -151,6 +153,10 @@ impl ContractTrait for Contract {
         // if price: return price
         // return current_price
     }
+
+    fn bond_id(e: Env) -> BytesN<32> {
+        read_bond_token_id(&e)
+    }
 }
 
 fn current_price(e: Env) {
@@ -160,16 +166,17 @@ fn current_price(e: Env) {
 
 fn create_bond_token(
     e: &Env,
-    admin: &Identifier,
     name: Bytes,
     symbol: Bytes,
     decimals: u32,
 ) -> (BytesN<32>, TokenClient) {
-    let id = e.register_contract_token(None);
+    let salt = Bytes::new(e);
+    let salt = e.crypto().sha256(&salt);
+    let id = e.deployer().with_current_contract(salt).deploy_token();
     let token = TokenClient::new(e, &id);
 
     token.init(
-        &admin,
+        &Identifier::Contract(e.get_current_contract()),
         &TokenMetadata {
             name: name,
             symbol: symbol,
@@ -178,4 +185,8 @@ fn create_bond_token(
     );
 
     (id, token)
+}
+
+fn days_to_seconds(days: u64) -> u64 {
+    days * 24 * 60 * 60
 }

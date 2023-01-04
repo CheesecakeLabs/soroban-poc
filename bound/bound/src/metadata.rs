@@ -2,23 +2,12 @@ use crate::storage_types::{DataKey, State};
 use soroban_auth::Identifier;
 use soroban_sdk::{BytesN, Env};
 
-// #[contracttype]
-// pub enum DataKey {
-//     State,      // State
-//     Admin,      // Identifier
-//     PaymentTkn, // BytesN<32>
-//     BondTkn,   // BytesN<32>
-//     FeeIntrvl,  // u32
-//     FeeRate,    // i128
-//     InitPrice,  // i128
-//     Price,      // i128
-//     InitTime,   // u64
-//     EndTime,    // u64
-//     Supply,     // i128
-// }
-
 pub fn write_admin(e: &Env, id: Identifier) {
     e.storage().set(DataKey::Admin, id);
+}
+
+pub fn write_state(e: &Env, state: State) {
+    e.storage().set(DataKey::State, state);
 }
 
 pub fn write_payment_token(e: &Env, contract_id: BytesN<32>) {
@@ -29,7 +18,7 @@ pub fn write_bond_token(e: &Env, contract_id: BytesN<32>) {
     e.storage().set(DataKey::BondTkn, contract_id);
 }
 
-pub fn write_fee_interval(e: &Env, interval: u32) {
+pub fn write_fee_interval(e: &Env, interval: u64) {
     e.storage().set(DataKey::FeeIntrvl, interval);
 }
 
@@ -62,9 +51,12 @@ pub fn has_admin(env: &Env) -> bool {
 }
 
 pub fn read_state(e: &Env) -> State {
-    let key = DataKey::State;
     e.storage()
-        .get(key)
+        .get(DataKey::State)
         .unwrap_or(Ok(State::NoInitiatd))
         .unwrap()
+}
+
+pub fn read_bond_token_id(e: &Env) -> BytesN<32> {
+    e.storage().get_unchecked(DataKey::BondTkn).unwrap()
 }

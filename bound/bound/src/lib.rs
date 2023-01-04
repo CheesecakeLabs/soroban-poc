@@ -7,4 +7,4 @@ mod storage_types;
 
 #[cfg(test)]
 mod test;
-pub use crate::contract::Contract;
+pub use crate::contract::Bond;
