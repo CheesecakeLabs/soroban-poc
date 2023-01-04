@@ -1,6 +1,9 @@
-use crate::storage_types::{DataKey, State};
-use soroban_auth::Identifier;
-use soroban_sdk::{BytesN, Env};
+use crate::{
+    errors::Error,
+    storage_types::{DataKey, State},
+};
+use soroban_auth::{Identifier, Signature};
+use soroban_sdk::{panic_with_error, BytesN, Env};
 
 pub fn write_admin(e: &Env, id: Identifier) {
     e.storage().set(DataKey::Admin, id);
@@ -59,4 +62,15 @@ pub fn read_state(e: &Env) -> State {
 
 pub fn read_bond_token_id(e: &Env) -> BytesN<32> {
     e.storage().get_unchecked(DataKey::BondTkn).unwrap()
+}
+
+pub fn read_admin(e: &Env) -> Identifier {
+    e.storage().get_unchecked(DataKey::Admin).unwrap()
+}
+
+pub fn check_admin(e: &Env, auth: &Signature) {
+    let auth_id = auth.identifier(e);
+    if auth_id != read_admin(e) {
+        panic_with_error!(&e, Error::NotAuthorized);
+    };
 }

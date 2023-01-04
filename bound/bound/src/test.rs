@@ -78,6 +78,9 @@ fn test_success() {
 
     assert_eq!(bond_tkn.balance(&contract_identifier), 10000);
 
+    // Start the contract
+    contract.with_source_account(&admin).start(&0);
+
     // User call example
     // contract
     //     .with_source_account(&user1)

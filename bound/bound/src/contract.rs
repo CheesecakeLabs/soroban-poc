@@ -1,7 +1,7 @@
 use crate::errors::Error;
 use crate::metadata::{
-    read_bond_token_id, read_state, write_admin, write_bond_token, write_fee_interval,
-    write_fee_rate, write_payment_token, write_price, write_state,
+    check_admin, read_bond_token_id, read_state, write_admin, write_bond_token, write_fee_interval,
+    write_fee_rate, write_init_time, write_payment_token, write_price, write_state,
 };
 use crate::storage_types::State;
 use soroban_auth::{Identifier, Signature};
@@ -82,10 +82,10 @@ impl BondTrait for Bond {
         // Save Bond token address
         write_bond_token(&e, bond_id);
 
-        // Save fee interval (maybe in seconds?)
+        // Save fee interval
         write_fee_interval(&e, days_to_seconds(fee_days_interval));
 
-        // Save Bon token fee rate (multiplied by 100)
+        // Save Bond token fee rate (multiplied by 1000)
         write_fee_rate(&e, fee_rate);
 
         // Save the Bond token price (in terms of Payment token)
@@ -103,10 +103,14 @@ impl BondTrait for Bond {
     }
 
     fn start(e: Env, initial_timestamp: u64) {
-        // check admin
-        // check state == started
-        // set state = available
-        // set initial timestamp
+        check_admin(&e, &Signature::Invoker);
+
+        if read_state(&e) != State::Initiated {
+            panic_with_error!(&e, Error::NotInitialized)
+        }
+
+        write_state(&e, State::Available);
+        write_init_time(&e, initial_timestamp);
     }
 
     fn set_end(e: Env, end_timestamp: u64) {

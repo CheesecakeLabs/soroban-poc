@@ -5,4 +5,6 @@ use soroban_sdk::contracterror;
 #[repr(u32)]
 pub enum Error {
     AlreadyInitialized = 1,
+    NotAuthorized = 2,
+    NotInitialized = 3,
 }
