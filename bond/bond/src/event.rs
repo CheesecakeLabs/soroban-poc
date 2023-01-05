@@ -12,17 +12,17 @@ pub(crate) fn initialize(e: &Env, admin: Identifier, bond_id: BytesN<32>, initia
 }
 
 pub(crate) fn start(e: &Env, initial_timestamp: u64) {
-    let topics = (symbol!("start"), initial_timestamp);
+    let topics = (symbol!("start"),);
     e.events().publish(topics, initial_timestamp);
 }
 
 pub(crate) fn set_end(e: &Env, end_timestamp: u64) {
-    let topics = (symbol!("set_end"), end_timestamp);
+    let topics = (symbol!("set_end"),);
     e.events().publish(topics, end_timestamp);
 }
 
 pub(crate) fn withdraw(e: &Env, amount: i128, to: Identifier) {
-    let topics = (symbol!("withdraw"), amount, to);
+    let topics = (symbol!("withdraw"), to);
     e.events().publish(topics, amount);
 }
 
@@ -32,11 +32,11 @@ pub(crate) fn en_csh_out(e: &Env) {
 }
 
 pub(crate) fn cash_out(e: &Env, amount: i128, to: Identifier) {
-    let topics = (symbol!("cash_out"), amount, to);
+    let topics = (symbol!("cash_out"), to);
     e.events().publish(topics, amount);
 }
 
 pub(crate) fn buy(e: &Env, amount: i128, from: Identifier) {
-    let topics = (symbol!("buy"), amount, from);
+    let topics = (symbol!("buy"), from);
     e.events().publish(topics, amount);
 }
