@@ -99,12 +99,6 @@ pub fn read_payment_token(e: &Env) -> BytesN<32> {
     e.storage().get_unchecked(DataKey::PaymentTkn).unwrap()
 }
 
-pub fn read_user(e: &Env, user: &Identifier) -> bool {
-    e.storage()
-        .get(DataKey::User(user.clone()))
-        .unwrap_or(Ok(false))
-        .unwrap()
-}
 
 // Aux functions
 pub fn increase_supply(e: &Env, supply: i128) {
