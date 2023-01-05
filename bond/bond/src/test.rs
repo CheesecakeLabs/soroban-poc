@@ -308,7 +308,7 @@ fn test_success_with_simple_interest() {
     assert_eq!(150, contract.get_price());
 
     // Update time in 12 months (since start date)
-    // Price must be 259 because the end date is 10 months after the start date
+    // Price must be 200 because the end date is 10 months after the start date
     contract = updates_contract_time(&e, contract_id.clone(), days_to_seconds(12 * 30));
 
     // Admin withdraws 20000 payment tokens
