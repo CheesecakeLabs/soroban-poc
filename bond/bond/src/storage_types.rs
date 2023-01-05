@@ -7,6 +7,8 @@ pub enum State {
     Initiated,
     Available,
     CashOutEn,
+    Paused,
+    
 }
 
 #[derive(Clone)]
