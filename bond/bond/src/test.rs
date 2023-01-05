@@ -141,7 +141,7 @@ fn test_success_with_compound_interest() {
         .with_source_account(&admin)
         .set_end(&days_to_seconds(10 * 30));
 
-    // add users to white list
+    // Add users to white list
     contract.with_source_account(&admin).add_user(&user1_id);
     contract.with_source_account(&admin).add_user(&user2_id);
     contract.with_source_account(&admin).add_user(&user3_id);
@@ -286,6 +286,11 @@ fn test_success_with_simple_interest() {
     contract
         .with_source_account(&admin)
         .set_end(&days_to_seconds(10 * 30));
+
+    // Add users to white list
+    contract.with_source_account(&admin).add_user(&user1_id);
+    contract.with_source_account(&admin).add_user(&user2_id);
+    contract.with_source_account(&admin).add_user(&user3_id);
 
     // Get current price
     assert_eq!(100, contract.get_price());
@@ -473,13 +478,12 @@ fn test_buy_with_user_not_allowed() {
 
     let user1 = e.accounts().generate();
 
-    let (payment_tkn_id, payment_tkn) =
+    let (payment_tkn_id, _payment_tkn) =
         create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
 
     let time = 0;
     let contract_id = e.register_contract(None, Bond);
     let contract = updates_contract_time(&e, contract_id.clone(), time);
-
 
     // Initialize the contract
     contract.initialize(
@@ -491,6 +495,7 @@ fn test_buy_with_user_not_allowed() {
         &100,
         &100, // 100 / 1000 = 0.1 => 10%
         &30,
+        &InterestType::Compound,
         &10000,
     );
 
