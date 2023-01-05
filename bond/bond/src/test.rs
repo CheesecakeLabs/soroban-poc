@@ -1,11 +1,10 @@
 #![cfg(test)]
 use crate::contract::{token, Bond, BondClient};
-
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
 use soroban_sdk::{AccountId, BytesN, Env, IntoVal};
-use token::{Client as TokenClient, TokenMetadata};
 
+use token::{Client as TokenClient, TokenMetadata};
 fn create_token_contract(
     e: &Env,
     admin: &AccountId,
@@ -145,6 +144,8 @@ fn test_success() {
     assert_eq!(100, contract.get_price());
 
     // User 1 buy 200 Bond tokens with price 100
+    contract.with_source_account(&admin).pause();
+    contract.with_source_account(&admin).unpause();
     contract.with_source_account(&user1).buy(&200);
     assert_eq!(payment_tkn.balance(&user1_id), 80000);
 
@@ -247,9 +248,10 @@ fn invalid_end_timestamp() {
 }
 
 #[test]
-#[should_panic(expected = "Status(ContractError(11))")]
-fn test_buy_with_user_not_allowed() {
+#[should_panic(expected = "Status(ContractError(7))")]
+fn test_buy_not_available_paused() {
     let e: Env = Default::default();
+
     let admin = e.accounts().generate();
     let admin_id = Identifier::Account(admin.clone());
     let payment_tkn_admin = e.accounts().generate();
@@ -280,7 +282,6 @@ fn test_buy_with_user_not_allowed() {
         &user1_id,
         &100000,
     );
-
     payment_tkn.with_source_account(&payment_tkn_admin).mint(
         &Signature::Invoker,
         &0,
@@ -307,31 +308,23 @@ fn test_buy_with_user_not_allowed() {
 
     // Start the contract
     contract.with_source_account(&admin).start(&0);
-    // Set the end date for 10 months from now (assuming 1 month = 30 days)
-    contract
-        .with_source_account(&admin)
-        .set_end(&days_to_seconds(10 * 30));
 
-    // add user to white list
-    contract.with_source_account(&admin).add_user(&user1_id);
+    // Pause the contract
+    contract.with_source_account(&admin).pause();
 
-    // remove user from white list
-    contract.with_source_account(&admin).rm_user(&user1_id);
-
-    // User 1 (not allowed) try to buy 200 Bond tokens with price 100
+    // try to buy with contract paused
     contract.with_source_account(&user1).buy(&200);
 }
 
 #[test]
-#[should_panic(expected = "Status(ContractError(10))")]
-fn user_already_allowed() {
+#[should_panic(expected = "Status(ContractError(11))")]
+fn test_buy_with_user_not_allowed() {
     let e: Env = Default::default();
     let admin = e.accounts().generate();
     let admin_id = Identifier::Account(admin.clone());
     let payment_tkn_admin = e.accounts().generate();
 
     let user1 = e.accounts().generate();
-    let user1_id = Identifier::Account(user1.clone());
 
     let (payment_tkn_id, payment_tkn) =
         create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
@@ -340,6 +333,8 @@ fn user_already_allowed() {
     let contract_id = e.register_contract(None, Bond);
     let contract = updates_contract_time(&e, contract_id.clone(), time);
 
+
+    // Initialize the contract
     contract.initialize(
         &admin_id.clone(),
         &payment_tkn_id,
@@ -352,8 +347,9 @@ fn user_already_allowed() {
         &10000,
     );
 
-    // add user to white list
-    contract.with_source_account(&admin).add_user(&user1_id);
-    // add user to white list
-    contract.with_source_account(&admin).add_user(&user1_id);
+    // Start the contract
+    contract.with_source_account(&admin).start(&0);
+
+    // try to buy without be allowed
+    contract.with_source_account(&user1).buy(&200);
 }

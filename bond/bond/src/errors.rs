@@ -15,4 +15,5 @@ pub enum Error {
     EndTimeNotPassed = 9,
     UserAlreadyAllowed = 10,
     UserNotAllowed = 11,
+    NotPaused = 12,
 }

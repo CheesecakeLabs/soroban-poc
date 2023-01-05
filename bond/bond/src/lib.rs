@@ -2,6 +2,7 @@
 
 mod contract;
 mod errors;
+mod event;
 mod metadata;
 mod storage_types;
 
