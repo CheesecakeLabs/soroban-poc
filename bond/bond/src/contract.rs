@@ -2,12 +2,12 @@ use crate::errors::Error;
 use crate::event;
 use crate::metadata::{
     check_admin, check_user, decrease_supply, delete_user, increase_supply, read_bond_token_id,
-    read_end_time, read_fee_interval, read_fee_rate, read_init_time, read_payment_token,
-    read_price, read_state, read_supply, write_admin, write_bond_token, write_end_time,
-    write_fee_interval, write_fee_rate, write_init_time, write_payment_token, write_price,
-    write_state, write_user,
+    read_end_time, read_fee_interval, read_fee_rate, read_fee_type, read_init_time,
+    read_payment_token, read_price, read_state, read_supply, write_admin, write_bond_token,
+    write_end_time, write_fee_interval, write_fee_rate, write_fee_type, write_init_time,
+    write_payment_token, write_price, write_state, write_user,
 };
-use crate::storage_types::State;
+use crate::storage_types::{InterestType, State};
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{contractimpl, panic_with_error, Bytes, BytesN, Env};
 pub mod token {
@@ -27,6 +27,7 @@ pub trait BondTrait {
         price: i128,
         fee_rate: i128,
         fee_days_interval: u64,
+        fee_type: InterestType,
         initial_amount: i128,
     );
 
@@ -80,6 +81,7 @@ impl BondTrait for Bond {
         price: i128,
         fee_rate: i128,
         fee_days_interval: u64,
+        fee_type: InterestType,
         initial_amount: i128,
     ) {
         if read_state(&e) != State::NoInitiatd {
@@ -102,6 +104,9 @@ impl BondTrait for Bond {
 
         // Save Bond token fee rate (multiplied by 1000)
         write_fee_rate(&e, fee_rate);
+
+        // Save interest type (simple ou compound)
+        write_fee_type(&e, fee_type);
 
         // Save the Bond token price (in terms of Payment token)
         write_price(&e, price);
@@ -288,12 +293,24 @@ fn current_price(e: &Env) -> i128 {
         end_time = now;
     }
 
+    let initial_price = read_price(&e);
     let time = (end_time - read_init_time(&e)) / read_fee_interval(&e);
+
     if time == 0 {
-        return read_price(&e);
+        return initial_price;
     }
-    let fees = 1000 + read_fee_rate(&e);
-    read_price(&e) * (fees.pow(time as u32)) / 1000_i128.pow(time as u32)
+
+    let fee_type = read_fee_type(e);
+
+    match fee_type {
+        InterestType::Simple => {
+            return initial_price + (initial_price * (time as i128) * read_fee_rate(&e)) / 1000;
+        }
+        InterestType::Compound => {
+            let fees = 1000 + read_fee_rate(&e);
+            return initial_price * (fees.pow(time as u32)) / 1000_i128.pow(time as u32);
+        }
+    }
 }
 
 fn create_bond_token(

@@ -10,7 +10,13 @@ pub enum State {
     Available,
     CashOutEn,
     Paused,
-    
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum InterestType {
+    Simple,
+    Compound,
 }
 
 #[derive(Clone)]
@@ -22,6 +28,7 @@ pub enum DataKey {
     BondTkn,          // BytesN<32>
     FeeIntrvl,        // u64
     FeeRate,          // i128
+    FeeType,          // InterestType
     Price,            // i128
     InitTime,         // u64
     EndTime,          // u64

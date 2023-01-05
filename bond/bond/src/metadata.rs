@@ -1,6 +1,6 @@
 use crate::{
     errors::Error,
-    storage_types::{DataKey, State},
+    storage_types::{DataKey, InterestType, State},
 };
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{panic_with_error, BytesN, Env};
@@ -44,6 +44,10 @@ pub fn write_end_time(e: &Env, end_time: u64) {
 
 pub fn write_supply(e: &Env, supply: i128) {
     e.storage().set(DataKey::Supply, supply);
+}
+
+pub fn write_fee_type(e: &Env, fee_type: InterestType) {
+    e.storage().set(DataKey::FeeType, fee_type);
 }
 
 pub fn write_user(e: &Env, user: Identifier) {
@@ -99,6 +103,9 @@ pub fn read_payment_token(e: &Env) -> BytesN<32> {
     e.storage().get_unchecked(DataKey::PaymentTkn).unwrap()
 }
 
+pub fn read_fee_type(e: &Env) -> InterestType {
+    e.storage().get_unchecked(DataKey::FeeType).unwrap()
+}
 
 // Aux functions
 pub fn increase_supply(e: &Env, supply: i128) {
