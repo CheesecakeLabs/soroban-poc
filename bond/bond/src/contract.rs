@@ -179,8 +179,9 @@ impl BondTrait for Bond {
 
     fn en_csh_out(e: Env) {
         check_admin(&e, &Signature::Invoker);
-
-        if read_state(&e) != State::Available {
+        let state = read_state(&e);
+        
+        if state != State::Available && state != State::Paused {
             panic_with_error!(&e, Error::NotAvailable)
         }
 
