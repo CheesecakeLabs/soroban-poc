@@ -136,6 +136,11 @@ fn test_success() {
         .with_source_account(&admin)
         .set_end(&days_to_seconds(10 * 30));
 
+    // add users to white list
+    contract.with_source_account(&admin).add_user(&user1_id);
+    contract.with_source_account(&admin).add_user(&user2_id);
+    contract.with_source_account(&admin).add_user(&user3_id);
+
     // Get current price
     assert_eq!(100, contract.get_price());
 
@@ -239,4 +244,116 @@ fn invalid_end_timestamp() {
     // Start the contract
     contract.with_source_account(&admin).start(&10);
     contract.with_source_account(&admin).set_end(&5);
+}
+
+#[test]
+#[should_panic(expected = "Status(ContractError(11))")]
+fn test_buy_with_user_not_allowed() {
+    let e: Env = Default::default();
+    let admin = e.accounts().generate();
+    let admin_id = Identifier::Account(admin.clone());
+    let payment_tkn_admin = e.accounts().generate();
+
+    let user1 = e.accounts().generate();
+    let user1_id = Identifier::Account(user1.clone());
+
+    let (payment_tkn_id, payment_tkn) =
+        create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
+
+    let time = 0;
+    let contract_id = e.register_contract(None, Bond);
+    let contract = updates_contract_time(&e, contract_id.clone(), time);
+    let contract_identifier = Identifier::Contract(contract_id.clone());
+
+    // Users approve the contract to transfer their payment tokens
+    payment_tkn.with_source_account(&user1).approve(
+        &Signature::Invoker,
+        &0,
+        &contract_identifier,
+        &100000,
+    );
+
+    // Payment token admin mint some tokens for the users
+    payment_tkn.with_source_account(&payment_tkn_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &user1_id,
+        &100000,
+    );
+
+    payment_tkn.with_source_account(&payment_tkn_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &admin_id,
+        &200000,
+    );
+
+    // Initialize the contract
+    contract.initialize(
+        &admin_id.clone(),
+        &payment_tkn_id,
+        &"Bond".into_val(&e),
+        &"BND".into_val(&e),
+        &8,
+        &100,
+        &100, // 100 / 1000 = 0.1 => 10%
+        &30,
+        &10000,
+    );
+
+    let bond_tkn = TokenClient::new(&e, &contract.bond_id());
+
+    assert_eq!(bond_tkn.balance(&contract_identifier), 10000);
+
+    // Start the contract
+    contract.with_source_account(&admin).start(&0);
+    // Set the end date for 10 months from now (assuming 1 month = 30 days)
+    contract
+        .with_source_account(&admin)
+        .set_end(&days_to_seconds(10 * 30));
+
+    // add user to white list
+    contract.with_source_account(&admin).add_user(&user1_id);
+
+    // remove user from white list
+    contract.with_source_account(&admin).rm_user(&user1_id);
+
+    // User 1 (not allowed) try to buy 200 Bond tokens with price 100
+    contract.with_source_account(&user1).buy(&200);
+}
+
+#[test]
+#[should_panic(expected = "Status(ContractError(10))")]
+fn user_already_allowed() {
+    let e: Env = Default::default();
+    let admin = e.accounts().generate();
+    let admin_id = Identifier::Account(admin.clone());
+    let payment_tkn_admin = e.accounts().generate();
+
+    let user1 = e.accounts().generate();
+    let user1_id = Identifier::Account(user1.clone());
+
+    let (payment_tkn_id, payment_tkn) =
+        create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
+
+    let time = 0;
+    let contract_id = e.register_contract(None, Bond);
+    let contract = updates_contract_time(&e, contract_id.clone(), time);
+
+    contract.initialize(
+        &admin_id.clone(),
+        &payment_tkn_id,
+        &"Bond".into_val(&e),
+        &"BND".into_val(&e),
+        &8,
+        &100,
+        &100, // 100 / 1000 = 0.1 => 10%
+        &30,
+        &10000,
+    );
+
+    // add user to white list
+    contract.with_source_account(&admin).add_user(&user1_id);
+    // add user to white list
+    contract.with_source_account(&admin).add_user(&user1_id);
 }
