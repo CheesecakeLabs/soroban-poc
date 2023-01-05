@@ -1,11 +1,10 @@
 #![cfg(test)]
 use crate::contract::{token, Bond, BondClient};
-
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
 use soroban_sdk::{AccountId, BytesN, Env, IntoVal};
-use token::{Client as TokenClient, TokenMetadata};
 
+use token::{Client as TokenClient, TokenMetadata};
 fn create_token_contract(
     e: &Env,
     admin: &AccountId,
