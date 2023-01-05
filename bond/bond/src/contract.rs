@@ -51,6 +51,10 @@ pub trait BondTrait {
 
     // Get Bond Token contract ID
     fn bond_id(e: Env) -> BytesN<32>;
+
+    fn pause(e: Env);
+
+    fn unpause(e: Env);
 }
 
 pub struct Bond;
@@ -222,6 +226,22 @@ impl BondTrait for Bond {
 
     fn bond_id(e: Env) -> BytesN<32> {
         read_bond_token_id(&e)
+    }
+
+    fn pause(e: Env) {
+        check_admin(&e, &Signature::Invoker);
+        if read_state(&e) != State::Available {
+            panic_with_error!(&e, Error::NotAvailable)
+        }
+        write_state(&e, State::Paused);
+    }
+
+    fn unpause(e: Env) {
+        check_admin(&e, &Signature::Invoker);
+        if read_state(&e) != State::Paused {
+            panic_with_error!(&e, Error::NotPaused)
+        }
+        write_state(&e, State::Available);
     }
 }
 
