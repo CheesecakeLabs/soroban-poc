@@ -256,7 +256,6 @@ fn current_price(e: &Env) -> i128 {
             let fees = 1000 + read_fee_rate(&e);
             return initial_price * (fees.pow(time as u32)) / 1000_i128.pow(time as u32);
         }
-        _ => panic_with_error!(&e, Error::InvalidFeeType),
     }
 }
 

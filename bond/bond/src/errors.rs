@@ -13,5 +13,4 @@ pub enum Error {
     NotAvailable = 7,
     NotEnoughTokens = 8,
     EndTimeNotPassed = 9,
-    InvalidFeeType = 10,
 }

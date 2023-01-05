@@ -43,6 +43,32 @@ fn days_to_seconds(days: u64) -> u64 {
     days * 24 * 60 * 60
 }
 
+fn generate_user_account(
+    e: &Env,
+    token_client: &TokenClient,
+    token_admin: &AccountId,
+    contract_id: &Identifier,
+    amount: &i128,
+) -> (AccountId, Identifier) {
+    let user1 = e.accounts().generate();
+    let user1_id = Identifier::Account(user1.clone());
+
+    token_client.with_source_account(&user1).approve(
+        &Signature::Invoker,
+        &0,
+        &contract_id,
+        &amount,
+    );
+
+    token_client.with_source_account(&token_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &user1_id,
+        &amount,
+    );
+    (user1, user1_id)
+}
+
 #[test]
 fn test_success_with_compound_interest() {
     let e: Env = Default::default();
@@ -50,13 +76,6 @@ fn test_success_with_compound_interest() {
     let admin = e.accounts().generate();
     let admin_id = Identifier::Account(admin.clone());
     let payment_tkn_admin = e.accounts().generate();
-
-    let user1 = e.accounts().generate();
-    let user2 = e.accounts().generate();
-    let user3 = e.accounts().generate();
-    let user1_id = Identifier::Account(user1.clone());
-    let user2_id = Identifier::Account(user2.clone());
-    let user3_id = Identifier::Account(user3.clone());
 
     let (payment_tkn_id, payment_tkn) =
         create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
@@ -66,45 +85,30 @@ fn test_success_with_compound_interest() {
     let mut contract = updates_contract_time(&e, contract_id.clone(), time);
     let contract_identifier = Identifier::Contract(contract_id.clone());
 
-    // Users approve the contract to transfer their payment tokens
-    payment_tkn.with_source_account(&user1).approve(
-        &Signature::Invoker,
-        &0,
-        &contract_identifier,
-        &100000,
-    );
-    payment_tkn.with_source_account(&user2).approve(
-        &Signature::Invoker,
-        &0,
-        &contract_identifier,
-        &100000,
-    );
-    payment_tkn.with_source_account(&user3).approve(
-        &Signature::Invoker,
-        &0,
+    let (user1, user1_id) = generate_user_account(
+        &e,
+        &payment_tkn,
+        &payment_tkn_admin,
         &contract_identifier,
         &100000,
     );
 
-    // Payment token admin mint some tokens for the users
-    payment_tkn.with_source_account(&payment_tkn_admin).mint(
-        &Signature::Invoker,
-        &0,
-        &user1_id,
+    let (user2, user2_id) = generate_user_account(
+        &e,
+        &payment_tkn,
+        &payment_tkn_admin,
+        &contract_identifier,
         &100000,
     );
-    payment_tkn.with_source_account(&payment_tkn_admin).mint(
-        &Signature::Invoker,
-        &0,
-        &user2_id,
+
+    let (user3, user3_id) = generate_user_account(
+        &e,
+        &payment_tkn,
+        &payment_tkn_admin,
+        &contract_identifier,
         &100000,
     );
-    payment_tkn.with_source_account(&payment_tkn_admin).mint(
-        &Signature::Invoker,
-        &0,
-        &user3_id,
-        &100000,
-    );
+
     payment_tkn.with_source_account(&payment_tkn_admin).mint(
         &Signature::Invoker,
         &0,
@@ -212,13 +216,6 @@ fn test_success_with_simple_interest() {
     let admin_id = Identifier::Account(admin.clone());
     let payment_tkn_admin = e.accounts().generate();
 
-    let user1 = e.accounts().generate();
-    let user2 = e.accounts().generate();
-    let user3 = e.accounts().generate();
-    let user1_id = Identifier::Account(user1.clone());
-    let user2_id = Identifier::Account(user2.clone());
-    let user3_id = Identifier::Account(user3.clone());
-
     let (payment_tkn_id, payment_tkn) =
         create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
 
@@ -227,45 +224,30 @@ fn test_success_with_simple_interest() {
     let mut contract = updates_contract_time(&e, contract_id.clone(), time);
     let contract_identifier = Identifier::Contract(contract_id.clone());
 
-    // Users approve the contract to transfer their payment tokens
-    payment_tkn.with_source_account(&user1).approve(
-        &Signature::Invoker,
-        &0,
-        &contract_identifier,
-        &100000,
-    );
-    payment_tkn.with_source_account(&user2).approve(
-        &Signature::Invoker,
-        &0,
-        &contract_identifier,
-        &100000,
-    );
-    payment_tkn.with_source_account(&user3).approve(
-        &Signature::Invoker,
-        &0,
+    let (user1, user1_id) = generate_user_account(
+        &e,
+        &payment_tkn,
+        &payment_tkn_admin,
         &contract_identifier,
         &100000,
     );
 
-    // Payment token admin mint some tokens for the users
-    payment_tkn.with_source_account(&payment_tkn_admin).mint(
-        &Signature::Invoker,
-        &0,
-        &user1_id,
+    let (user2, user2_id) = generate_user_account(
+        &e,
+        &payment_tkn,
+        &payment_tkn_admin,
+        &contract_identifier,
         &100000,
     );
-    payment_tkn.with_source_account(&payment_tkn_admin).mint(
-        &Signature::Invoker,
-        &0,
-        &user2_id,
+
+    let (user3, user3_id) = generate_user_account(
+        &e,
+        &payment_tkn,
+        &payment_tkn_admin,
+        &contract_identifier,
         &100000,
     );
-    payment_tkn.with_source_account(&payment_tkn_admin).mint(
-        &Signature::Invoker,
-        &0,
-        &user3_id,
-        &100000,
-    );
+
     payment_tkn.with_source_account(&payment_tkn_admin).mint(
         &Signature::Invoker,
         &0,
