@@ -4,8 +4,8 @@ use crate::storage_types::InterestType;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
 use soroban_sdk::{AccountId, BytesN, Env, IntoVal};
-use token::{Client as TokenClient, TokenMetadata};
 
+use token::{Client as TokenClient, TokenMetadata};
 fn create_token_contract(
     e: &Env,
     admin: &AccountId,
@@ -145,6 +145,8 @@ fn test_success_with_compound_interest() {
     assert_eq!(100, contract.get_price());
 
     // User 1 buy 200 Bond tokens with price 100
+    contract.with_source_account(&admin).pause();
+    contract.with_source_account(&admin).unpause();
     contract.with_source_account(&user1).buy(&200);
     assert_eq!(payment_tkn.balance(&user1_id), 80000);
 
@@ -384,4 +386,73 @@ fn invalid_end_timestamp() {
     // Start the contract
     contract.with_source_account(&admin).start(&10);
     contract.with_source_account(&admin).set_end(&5);
+}
+
+#[test]
+#[should_panic(expected = "Status(ContractError(7))")]
+fn test_buy_not_available_paused() {
+    let e: Env = Default::default();
+
+    let admin = e.accounts().generate();
+    let admin_id = Identifier::Account(admin.clone());
+    let payment_tkn_admin = e.accounts().generate();
+
+    let user1 = e.accounts().generate();
+    let user1_id = Identifier::Account(user1.clone());
+
+    let (payment_tkn_id, payment_tkn) =
+        create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
+
+    let time = 0;
+    let contract_id = e.register_contract(None, Bond);
+    let contract = updates_contract_time(&e, contract_id.clone(), time);
+    let contract_identifier = Identifier::Contract(contract_id.clone());
+
+    // Users approve the contract to transfer their payment tokens
+    payment_tkn.with_source_account(&user1).approve(
+        &Signature::Invoker,
+        &0,
+        &contract_identifier,
+        &100000,
+    );
+
+    // Payment token admin mint some tokens for the users
+    payment_tkn.with_source_account(&payment_tkn_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &user1_id,
+        &100000,
+    );
+    payment_tkn.with_source_account(&payment_tkn_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &admin_id,
+        &200000,
+    );
+
+    // Initialize the contract
+    contract.initialize(
+        &admin_id.clone(),
+        &payment_tkn_id,
+        &"Bond".into_val(&e),
+        &"BND".into_val(&e),
+        &8,
+        &100,
+        &100, // 100 / 1000 = 0.1 => 10%
+        &30,
+        &InterestType::Compound,
+        &10000,
+    );
+
+    let bond_tkn = TokenClient::new(&e, &contract.bond_id());
+
+    assert_eq!(bond_tkn.balance(&contract_identifier), 10000);
+
+    contract.with_source_account(&admin).start(&0);
+    contract
+        .with_source_account(&admin)
+        .set_end(&days_to_seconds(10 * 30));
+
+    contract.with_source_account(&admin).pause();
+    contract.with_source_account(&user1).buy(&200);
 }

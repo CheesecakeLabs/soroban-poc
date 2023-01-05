@@ -1,4 +1,5 @@
 use crate::errors::Error;
+use crate::event;
 use crate::metadata::{
     check_admin, decrease_supply, increase_supply, read_bond_token_id, read_end_time,
     read_fee_interval, read_fee_rate, read_fee_type, read_init_time, read_payment_token,
@@ -53,6 +54,10 @@ pub trait BondTrait {
 
     // Get Bond Token contract ID
     fn bond_id(e: Env) -> BytesN<32>;
+
+    fn pause(e: Env);
+
+    fn unpause(e: Env);
 }
 
 pub struct Bond;
@@ -84,7 +89,7 @@ impl BondTrait for Bond {
         let (bond_id, bond_token) =
             create_bond_token(&e, bond_token_name, bond_token_symbol, bond_token_decimals);
         // Save Bond token address
-        write_bond_token(&e, bond_id);
+        write_bond_token(&e, bond_id.clone());
 
         // Save fee interval
         write_fee_interval(&e, days_to_seconds(fee_days_interval));
@@ -107,6 +112,8 @@ impl BondTrait for Bond {
                 &initial_amount,
             )
         }
+
+        event::initialize(&e, admin, bond_id, initial_amount);
     }
 
     fn start(e: Env, initial_timestamp: u64) {
@@ -118,6 +125,7 @@ impl BondTrait for Bond {
 
         write_state(&e, State::Available);
         write_init_time(&e, initial_timestamp);
+        event::start(&e, initial_timestamp);
     }
 
     fn set_end(e: Env, end_timestamp: u64) {
@@ -132,6 +140,7 @@ impl BondTrait for Bond {
         }
 
         write_end_time(&e, end_timestamp);
+        event::set_end(&e, end_timestamp);
     }
 
     fn withdraw(e: Env, amount: i128) {
@@ -140,13 +149,13 @@ impl BondTrait for Bond {
         if read_state(&e) == State::CashOutEn {
             panic_with_error!(&e, Error::AlreadyCashOutEn)
         }
-
         transfer_from_contract_to_account(
             &e,
             &read_payment_token(&e),
             &e.invoker().clone().into(),
             &amount,
-        )
+        );
+        event::withdraw(&e, amount, e.invoker().clone().into())
     }
 
     fn cash_out(e: Env) {
@@ -176,13 +185,15 @@ impl BondTrait for Bond {
             &Signature::Invoker,
             &invoker,
             &bond_balance,
-        )
+        );
+        event::cash_out(&e, bond_balance, invoker);
     }
 
     fn en_csh_out(e: Env) {
         check_admin(&e, &Signature::Invoker);
-
-        if read_state(&e) != State::Available {
+        let state = read_state(&e);
+        
+        if state != State::Available && state != State::Paused {
             panic_with_error!(&e, Error::NotAvailable)
         }
 
@@ -205,6 +216,7 @@ impl BondTrait for Bond {
         }
 
         write_state(&e, State::CashOutEn);
+        event::en_csh_out(&e);
     }
 
     fn buy(e: Env, amount: i128) {
@@ -220,6 +232,7 @@ impl BondTrait for Bond {
 
         transfer_from_account_to_contract(&e, &read_payment_token(&e), &invoker.clone(), &total);
         transfer_from_contract_to_account(&e, &read_bond_token_id(&e), &invoker.clone(), &amount);
+        event::buy(&e, amount, invoker);
     }
 
     fn get_price(e: Env) -> i128 {
@@ -228,6 +241,22 @@ impl BondTrait for Bond {
 
     fn bond_id(e: Env) -> BytesN<32> {
         read_bond_token_id(&e)
+    }
+
+    fn pause(e: Env) {
+        check_admin(&e, &Signature::Invoker);
+        if read_state(&e) != State::Available {
+            panic_with_error!(&e, Error::NotAvailable)
+        }
+        write_state(&e, State::Paused);
+    }
+
+    fn unpause(e: Env) {
+        check_admin(&e, &Signature::Invoker);
+        if read_state(&e) != State::Paused {
+            panic_with_error!(&e, Error::NotPaused)
+        }
+        write_state(&e, State::Available);
     }
 }
 
