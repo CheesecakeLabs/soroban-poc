@@ -1,10 +1,11 @@
 use crate::errors::Error;
 use crate::event;
 use crate::metadata::{
-    check_admin, decrease_supply, increase_supply, read_bond_token_id, read_end_time,
-    read_fee_interval, read_fee_rate, read_init_time, read_payment_token, read_price, read_state,
-    read_supply, write_admin, write_bond_token, write_end_time, write_fee_interval, write_fee_rate,
-    write_init_time, write_payment_token, write_price, write_state,
+    check_admin, check_user, decrease_supply, delete_user, increase_supply, read_bond_token_id,
+    read_end_time, read_fee_interval, read_fee_rate, read_init_time, read_payment_token,
+    read_price, read_state, read_supply, write_admin, write_bond_token, write_end_time,
+    write_fee_interval, write_fee_rate, write_init_time, write_payment_token, write_price,
+    write_state, write_user,
 };
 use crate::storage_types::State;
 use soroban_auth::{Identifier, Signature};
@@ -53,8 +54,16 @@ pub trait BondTrait {
     // Get Bond Token contract ID
     fn bond_id(e: Env) -> BytesN<32>;
 
+    // add user to white list
+    fn add_user(e: Env, user: Identifier);
+
+    // remove user from white list
+    fn rm_user(e: Env, user: Identifier);
+
+    // pause the contract
     fn pause(e: Env);
 
+    // unpause the contract
     fn unpause(e: Env);
 }
 
@@ -186,7 +195,7 @@ impl BondTrait for Bond {
     fn en_csh_out(e: Env) {
         check_admin(&e, &Signature::Invoker);
         let state = read_state(&e);
-        
+
         if state != State::Available && state != State::Paused {
             panic_with_error!(&e, Error::NotAvailable)
         }
@@ -217,6 +226,9 @@ impl BondTrait for Bond {
         if read_state(&e) != State::Available {
             panic_with_error!(&e, Error::NotAvailable)
         }
+        if !check_user(&e, &(e.invoker().into())) {
+            panic_with_error!(&e, Error::UserNotAllowed)
+        }
 
         increase_supply(&e, amount);
 
@@ -237,6 +249,20 @@ impl BondTrait for Bond {
         read_bond_token_id(&e)
     }
 
+    fn add_user(e: Env, user: Identifier) {
+        check_admin(&e, &Signature::Invoker);
+        if check_user(&e, &user) {
+            panic_with_error!(&e, Error::UserAlreadyAllowed)
+        }
+        write_user(&e, user);
+    }
+    fn rm_user(e: Env, user: Identifier) {
+        check_admin(&e, &Signature::Invoker);
+        if !check_user(&e, &user) {
+            panic_with_error!(&e, Error::UserNotAllowed)
+        }
+        delete_user(&e, &user);
+    }
     fn pause(e: Env) {
         check_admin(&e, &Signature::Invoker);
         if read_state(&e) != State::Available {
