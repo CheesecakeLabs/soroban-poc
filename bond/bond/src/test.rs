@@ -1,6 +1,6 @@
 #![cfg(test)]
 use crate::contract::{token, Bond, BondClient};
-
+use crate::storage_types::InterestType;
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::testutils::{Accounts, Ledger, LedgerInfo};
 use soroban_sdk::{AccountId, BytesN, Env, IntoVal};
@@ -44,7 +44,7 @@ fn days_to_seconds(days: u64) -> u64 {
 }
 
 #[test]
-fn test_success() {
+fn test_success_with_compound_interest() {
     let e: Env = Default::default();
 
     let admin = e.accounts().generate();
@@ -122,6 +122,7 @@ fn test_success() {
         &100,
         &100, // 100 / 1000 = 0.1 => 10%
         &30,
+        &InterestType::Compound,
         &10000,
     );
 
@@ -229,6 +230,7 @@ fn invalid_end_timestamp() {
         &100,
         &10,
         &30,
+        &InterestType::Compound,
         &10000,
     );
 
