@@ -141,6 +141,11 @@ fn test_success_with_compound_interest() {
         .with_source_account(&admin)
         .set_end(&days_to_seconds(10 * 30));
 
+    // add users to white list
+    contract.with_source_account(&admin).add_user(&user1_id);
+    contract.with_source_account(&admin).add_user(&user2_id);
+    contract.with_source_account(&admin).add_user(&user3_id);
+
     // Get current price
     assert_eq!(100, contract.get_price());
 
@@ -448,11 +453,50 @@ fn test_buy_not_available_paused() {
 
     assert_eq!(bond_tkn.balance(&contract_identifier), 10000);
 
+    // Start the contract
     contract.with_source_account(&admin).start(&0);
-    contract
-        .with_source_account(&admin)
-        .set_end(&days_to_seconds(10 * 30));
 
+    // Pause the contract
     contract.with_source_account(&admin).pause();
+
+    // try to buy with contract paused
+    contract.with_source_account(&user1).buy(&200);
+}
+
+#[test]
+#[should_panic(expected = "Status(ContractError(11))")]
+fn test_buy_with_user_not_allowed() {
+    let e: Env = Default::default();
+    let admin = e.accounts().generate();
+    let admin_id = Identifier::Account(admin.clone());
+    let payment_tkn_admin = e.accounts().generate();
+
+    let user1 = e.accounts().generate();
+
+    let (payment_tkn_id, payment_tkn) =
+        create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
+
+    let time = 0;
+    let contract_id = e.register_contract(None, Bond);
+    let contract = updates_contract_time(&e, contract_id.clone(), time);
+
+
+    // Initialize the contract
+    contract.initialize(
+        &admin_id.clone(),
+        &payment_tkn_id,
+        &"Bond".into_val(&e),
+        &"BND".into_val(&e),
+        &8,
+        &100,
+        &100, // 100 / 1000 = 0.1 => 10%
+        &30,
+        &10000,
+    );
+
+    // Start the contract
+    contract.with_source_account(&admin).start(&0);
+
+    // try to buy without be allowed
     contract.with_source_account(&user1).buy(&200);
 }

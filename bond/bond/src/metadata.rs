@@ -50,6 +50,15 @@ pub fn write_fee_type(e: &Env, fee_type: InterestType) {
     e.storage().set(DataKey::FeeType, fee_type);
 }
 
+pub fn write_user(e: &Env, user: Identifier) {
+    e.storage().set(DataKey::User(user.clone()), user);
+}
+
+// Delete functions
+pub fn delete_user(e: &Env, user: &Identifier) {
+    e.storage().remove(DataKey::User(user.clone()));
+}
+
 // Read functions
 pub fn read_init_time(e: &Env) -> u64 {
     e.storage().get(DataKey::InitTime).unwrap_or(Ok(0)).unwrap()
@@ -114,4 +123,8 @@ pub fn check_admin(e: &Env, auth: &Signature) {
     if auth_id != read_admin(e) {
         panic_with_error!(&e, Error::NotAuthorized);
     };
+}
+
+pub fn check_user(e: &Env, user: &Identifier) -> bool {
+    e.storage().has(DataKey::User(user.clone()))
 }

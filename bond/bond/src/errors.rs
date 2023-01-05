@@ -13,5 +13,7 @@ pub enum Error {
     NotAvailable = 7,
     NotEnoughTokens = 8,
     EndTimeNotPassed = 9,
-    NotPaused = 10,
+    UserAlreadyAllowed = 10,
+    UserNotAllowed = 11,
+    NotPaused = 12,
 }
