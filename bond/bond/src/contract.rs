@@ -182,7 +182,7 @@ impl BondTrait for Bond {
 
         // Check if end time has passed
         if e.ledger().timestamp() < read_end_time(&e) {
-            panic_with_error!(&e, Error::NotCashOutEn)
+            panic_with_error!(&e, Error::EndTimeNotPassed)
         }
 
         // Check if the contract has the amount of payment tokens to

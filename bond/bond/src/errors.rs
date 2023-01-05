@@ -12,4 +12,5 @@ pub enum Error {
     NotCashOutEn = 6,
     NotAvailable = 7,
     NotEnoughTokens = 8,
+    EndTimeNotPassed = 9,
 }
