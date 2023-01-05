@@ -105,6 +105,12 @@ fn test_success() {
         &user3_id,
         &100000,
     );
+    payment_tkn.with_source_account(&payment_tkn_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &admin_id,
+        &200000,
+    );
 
     // Initialize the contract
     contract.initialize(
@@ -158,10 +164,43 @@ fn test_success() {
     assert_eq!(161, contract.get_price());
 
     // Update time in 12 months (since start date)
+    // Price must be 259 because the end date is 10 months after the start date
     contract = updates_contract_time(&e, contract_id.clone(), days_to_seconds(12 * 30));
 
+    // Admin withdraws 20000 payment tokens
+    assert_eq!(payment_tkn.balance(&contract_identifier), 64300);
+    contract.with_source_account(&admin).withdraw(&20000);
+    assert_eq!(payment_tkn.balance(&contract_identifier), 44300);
+
+    // Admin transfer to the contract the missing amount to pay the users
+    // supply * price = 500 * 259 = 129500
+    payment_tkn.with_source_account(&admin).xfer(
+        &Signature::Invoker,
+        &0,
+        &contract_identifier,
+        &85200,
+    );
+
     // Enable cash out
-    //contract.with_source_account(&admin).en_csh_out()
+    contract.with_source_account(&admin).en_csh_out();
+
+    // User 1 cash out
+    // Must receive 200 * 259 = 51800
+    contract.with_source_account(&user1).cash_out();
+    assert_eq!(payment_tkn.balance(&user1_id), 131800);
+
+    // User 2 cash out
+    // Must receive 100 * 259 = 25900
+    contract.with_source_account(&user2).cash_out();
+    assert_eq!(payment_tkn.balance(&user2_id), 113800);
+
+    // User 3 cash out
+    // Must receive 200 * 259 = 51800
+    contract.with_source_account(&user3).cash_out();
+    assert_eq!(payment_tkn.balance(&user3_id), 119600);
+
+    // Check the contract balance
+    assert_eq!(payment_tkn.balance(&contract_identifier), 0);
 }
 
 #[test]
@@ -201,7 +240,3 @@ fn invalid_end_timestamp() {
     contract.with_source_account(&admin).start(&10);
     contract.with_source_account(&admin).set_end(&5);
 }
-
-// #[test]
-// #[should_panic(expected = "Status(ContractError(1))")]
-// fn already_initialized_error() {}

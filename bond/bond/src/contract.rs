@@ -159,7 +159,7 @@ impl BondTrait for Bond {
         // Transfer amount of payment tokens from contract to user
         transfer_from_contract_to_account(
             &e,
-            &read_bond_token_id(&e),
+            &&read_payment_token(&e),
             &invoker.clone(),
             &total_payment,
         );
