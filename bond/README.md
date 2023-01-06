@@ -117,3 +117,11 @@ Enables the cash out of payment tokens. The end time must have passed and the co
 ### `cash_out`
 
 Transfer the amount of payment tokens relative to the user bond tokens balance, with the final valuation value. The user bond tokens are burned. Can only be called if cash out is enabled.
+
+## Bond price
+
+The bond starts with an initial price, and from the initial time an interest rate starts to be applied to its value. So if a bond starts at price X, and a user wants to buy it 3 months after the initial time, he will pay X + fees for 3 months. 
+
+When cash out is enabled, users can cash out the payment tokens from the valued bond. The sooner a user buys, the more profit he will make.
+
+The interest rate type (simple or compound), the time interval that rate will be applied, the rate value and the initial bond price are set at initialization.
