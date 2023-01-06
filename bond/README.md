@@ -2,9 +2,9 @@
 
 This is a contract that allows the management and purchase of a bond represented by an ERC20 token.
 
-There are two types of users: the Admin, who manages the contract, and the Users, who can buy the bonds and cash out when allowed. The main functions of each user are shown below.
+There are two types of users: the Admin, who manages the contract, and the Users, who can buy the bonds and cash out when allowed. The basic flow of use of the contract is illustrated below.
 
-![Main functions](images/main-fn.png)
+![Basic flow](images/basic-flow.png)
 
 ## States
 
@@ -19,6 +19,8 @@ The functions can be called according to the current state that the contract is 
 *Independent functions: `add_user`, `rm_user`, `get_price`, `bond_id`
 
 ## Methods
+
+![Main functions](images/main-fn.png)
 
 Each method of the contract will be described as follows.
 
