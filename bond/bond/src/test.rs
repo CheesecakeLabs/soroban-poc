@@ -360,8 +360,8 @@ fn test_success_with_simple_interest() {
 }
 
 #[test]
-#[should_panic(expected = "Status(ContractError(5))")]
-fn invalid_end_timestamp() {
+#[should_panic(expected = "Status(ContractError(4))")]
+fn test_set_end_when_cash_out_enabled() {
     let e: Env = Default::default();
 
     let admin = e.accounts().generate();
@@ -372,8 +372,7 @@ fn invalid_end_timestamp() {
         create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
 
     let contract_id = e.register_contract(None, Bond);
-    let contract = updates_contract_time(&e, contract_id.clone(), 0);
-    let contract_identifier = Identifier::Contract(contract_id.clone());
+    let contract = updates_contract_time(&e, contract_id.clone(), 20);
 
     // Initialize the contract
     contract.initialize(
@@ -389,12 +388,48 @@ fn invalid_end_timestamp() {
         &10000,
     );
 
-    let bond_tkn = TokenClient::new(&e, &contract.bond_id());
+    // Start the contract
+    contract.with_source_account(&admin).start(&10);
+    // Set end time
+    contract.with_source_account(&admin).set_end(&20);
+    // Enable cash out
+    contract.with_source_account(&admin).en_csh_out();
+    // Set end time again
+    contract.with_source_account(&admin).set_end(&20);
+}
 
-    assert_eq!(bond_tkn.balance(&contract_identifier), 10000);
+#[test]
+#[should_panic(expected = "Status(ContractError(5))")]
+fn test_set_end_invalid_timestamp() {
+    let e: Env = Default::default();
+
+    let admin = e.accounts().generate();
+    let admin_id = Identifier::Account(admin.clone());
+    let payment_tkn_admin = e.accounts().generate();
+
+    let (payment_tkn_id, _) =
+        create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
+
+    let contract_id = e.register_contract(None, Bond);
+    let contract = updates_contract_time(&e, contract_id.clone(), 0);
+
+    // Initialize the contract
+    contract.initialize(
+        &admin_id.clone(),
+        &payment_tkn_id,
+        &"Bond".into_val(&e),
+        &"BND".into_val(&e),
+        &8,
+        &100,
+        &10,
+        &30,
+        &InterestType::Compound,
+        &10000,
+    );
 
     // Start the contract
     contract.with_source_account(&admin).start(&10);
+    // Set end time lower than the initial time
     contract.with_source_account(&admin).set_end(&5);
 }
 
@@ -454,10 +489,6 @@ fn test_buy_not_available_paused() {
         &10000,
     );
 
-    let bond_tkn = TokenClient::new(&e, &contract.bond_id());
-
-    assert_eq!(bond_tkn.balance(&contract_identifier), 10000);
-
     // Start the contract
     contract.with_source_account(&admin).start(&0);
 
@@ -504,4 +535,154 @@ fn test_buy_with_user_not_allowed() {
 
     // try to buy without be allowed
     contract.with_source_account(&user1).buy(&200);
+}
+
+#[test]
+#[should_panic(expected = "Status(ContractError(4))")]
+fn test_withdraw_when_cash_out_enabled() {
+    let e: Env = Default::default();
+
+    let admin = e.accounts().generate();
+    let admin_id = Identifier::Account(admin.clone());
+    let payment_tkn_admin = e.accounts().generate();
+
+    let (payment_tkn_id, _payment_tkn) =
+        create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
+
+    let time = 20;
+    let contract_id = e.register_contract(None, Bond);
+    let contract = updates_contract_time(&e, contract_id.clone(), time);
+
+    // Initialize the contract
+    contract.initialize(
+        &admin_id.clone(),
+        &payment_tkn_id,
+        &"Bond".into_val(&e),
+        &"BND".into_val(&e),
+        &8,
+        &100,
+        &100, // 100 / 1000 = 0.1 => 10%
+        &30,
+        &InterestType::Compound,
+        &10000,
+    );
+
+    // Start the contract
+    contract.with_source_account(&admin).start(&0);
+    // Set end time
+    contract.with_source_account(&admin).set_end(&20);
+    // Enable cash out
+    contract.with_source_account(&admin).en_csh_out();
+    // Try withdraw
+    contract.with_source_account(&admin).withdraw(&10);
+}
+
+#[test]
+#[should_panic(expected = "Status(ContractError(6))")]
+fn test_cash_out_when_not_enabled() {
+    let e: Env = Default::default();
+
+    let admin = e.accounts().generate();
+    let admin_id = Identifier::Account(admin.clone());
+    let payment_tkn_admin = e.accounts().generate();
+
+    let (payment_tkn_id, _payment_tkn) =
+        create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
+
+    let user1 = e.accounts().generate();
+
+    let time = 20;
+    let contract_id = e.register_contract(None, Bond);
+    let contract = updates_contract_time(&e, contract_id.clone(), time);
+
+    // Initialize the contract
+    contract.initialize(
+        &admin_id.clone(),
+        &payment_tkn_id,
+        &"Bond".into_val(&e),
+        &"BND".into_val(&e),
+        &8,
+        &100,
+        &100, // 100 / 1000 = 0.1 => 10%
+        &30,
+        &InterestType::Compound,
+        &10000,
+    );
+
+    // Start the contract
+    contract.with_source_account(&admin).start(&0);
+    // Set end time
+    contract.with_source_account(&admin).set_end(&20);
+    // Try cash out
+    contract.with_source_account(&user1).cash_out();
+}
+
+#[test]
+#[should_panic(expected = "Status(ContractError(8))")]
+fn test_enable_cash_out_when_not_enough_tokens() {
+    let e: Env = Default::default();
+
+    let admin = e.accounts().generate();
+    let admin_id = Identifier::Account(admin.clone());
+    let payment_tkn_admin = e.accounts().generate();
+
+    let user1 = e.accounts().generate();
+    let user1_id = Identifier::Account(user1.clone());
+
+    let (payment_tkn_id, payment_tkn) =
+        create_token_contract(&e, &payment_tkn_admin, &"USD Coin", &"USDC", 8);
+
+    let time = 20;
+    let contract_id = e.register_contract(None, Bond);
+    let contract = updates_contract_time(&e, contract_id.clone(), time);
+    let contract_identifier = Identifier::Contract(contract_id.clone());
+
+    // Users approve the contract to transfer their payment tokens
+    payment_tkn.with_source_account(&user1).approve(
+        &Signature::Invoker,
+        &0,
+        &contract_identifier,
+        &100000,
+    );
+
+    // Payment token admin mint some tokens for the users
+    payment_tkn.with_source_account(&payment_tkn_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &user1_id,
+        &100000,
+    );
+    payment_tkn.with_source_account(&payment_tkn_admin).mint(
+        &Signature::Invoker,
+        &0,
+        &admin_id,
+        &200000,
+    );
+
+    // Initialize the contract
+    contract.initialize(
+        &admin_id.clone(),
+        &payment_tkn_id,
+        &"Bond".into_val(&e),
+        &"BND".into_val(&e),
+        &8,
+        &100,
+        &100, // 100 / 1000 = 0.1 => 10%
+        &30,
+        &InterestType::Compound,
+        &10000,
+    );
+
+    // Start the contract
+    contract.with_source_account(&admin).start(&0);
+    // Set end
+    contract.with_source_account(&admin).set_end(&20);
+    // Approve the User 1
+    contract.with_source_account(&admin).add_user(&user1_id);
+    // User 1 buys 200 bond tokens
+    contract.with_source_account(&user1).buy(&200);
+    // Admin withdraw some tokens
+    contract.with_source_account(&admin).withdraw(&10000);
+    // Try enable cash out
+    contract.with_source_account(&admin).en_csh_out();
 }

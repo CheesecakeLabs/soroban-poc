@@ -61,10 +61,10 @@ pub trait BondTrait {
     // remove user from white list
     fn rm_user(e: Env, user: Identifier);
 
-    // pause the contract
+    // Pause the contract (disable the buy function)
     fn pause(e: Env);
 
-    // unpause the contract
+    // Unpause the contract (enables the buy function)
     fn unpause(e: Env);
 }
 
@@ -261,6 +261,7 @@ impl BondTrait for Bond {
         }
         write_user(&e, user);
     }
+
     fn rm_user(e: Env, user: Identifier) {
         check_admin(&e, &Signature::Invoker);
         if !check_user(&e, &user) {
@@ -268,6 +269,7 @@ impl BondTrait for Bond {
         }
         delete_user(&e, &user);
     }
+
     fn pause(e: Env) {
         check_admin(&e, &Signature::Invoker);
         if read_state(&e) != State::Available {
@@ -289,19 +291,21 @@ fn current_price(e: &Env) -> i128 {
     let mut end_time = read_end_time(&e);
     let now = e.ledger().timestamp();
 
+    // If the end date has not passed yet
     if now < end_time {
         end_time = now;
     }
 
     let initial_price = read_price(&e);
+    // Calculates the amount of time intervals that have passed
     let time = (end_time - read_init_time(&e)) / read_fee_interval(&e);
 
+    // If no time interval has passed, the price does not change
     if time == 0 {
         return initial_price;
     }
 
     let fee_type = read_fee_type(e);
-
     match fee_type {
         InterestType::Simple => {
             return initial_price + (initial_price * (time as i128) * read_fee_rate(&e)) / 1000;
