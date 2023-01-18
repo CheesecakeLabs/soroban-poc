@@ -2,7 +2,7 @@ use crate::context::State;
 use crate::errors::Error;
 use crate::services::*;
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, panic_with_error, BytesN, Env, Vec};
+use soroban_sdk::{contractimpl, panic_with_error, BytesN, Env};
 
 pub mod token {
     soroban_sdk::contractimport!(file = "../soroban_token_contract.wasm");
@@ -71,15 +71,15 @@ impl LotteryTrait for Lottery {
             panic_with_error!(&env, Error::NotStarted);
         }
 
-        let random_number = get_random_number();
         let users = read_users(&env);
-        let winner_index = random_number % users.len();
+        let winner_index = get_random_winner_index(&env, users.len().into());
 
         let prize = get_contract_balance(&env);
         let admin_prize = (prize * read_admin_gain_percent(&env)) / 100;
         let user_prize = prize - admin_prize;
 
         let user: Identifier = users.get_unchecked(winner_index).unwrap();
+
         transfer_from_contract_to_account(&env, &user, &user_prize);
         transfer_from_contract_to_account(&env, &env.invoker().into(), &admin_prize);
 
@@ -111,6 +111,12 @@ fn get_contract_balance(env: &Env) -> i128 {
     token_client.balance(&Identifier::Contract(env.current_contract()))
 }
 
-fn get_random_number() -> u32 {
-    7
+fn get_random_winner_index(env: &Env, users_len: i128) -> u32 {
+    let timestamp: u64 = env.ledger().timestamp();
+    let timestamp_raw_ptr = &timestamp as *const u64;
+    let addr = timestamp_raw_ptr as i128;
+
+    let nonce = (addr - users_len) * timestamp as i128;
+
+    (nonce % users_len) as u32
 }
