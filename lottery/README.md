@@ -6,7 +6,7 @@ The goal of this hackathon was to create a lottery system where:
 - The winner is chosen based on a random memory address minus the number of participating users and multiplied by the ledger timestamp. From the resulting amount, the mod is calculated by the number of users. Thus, the winner's index is found.
 - the winner takes it all.
 
-![Lottery](images/lottery-contract.png width="50%" height="50%"))
+![Lottery](images/lottery-contract.png))
 
 ## Methods
 
@@ -35,4 +35,4 @@ Buy a lottery ticket. The ticket price is transferred from the user's account to
 
 Ends the lottery and selects a winner. The prize amount is divided and transferred from the contract account to the winning user and the admin. Must be called by the admin.
 
-![Lottery Example](images/lottery-example.png width="50%" height="50%")
+![Lottery Example](images/lottery-example.png)
