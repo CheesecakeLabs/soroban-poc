@@ -18,5 +18,4 @@ pub enum DataKey {
     State,      // enum State
     TicktPrice, // i128
     Users,      // Vec<Identifier>
-    DateGen,    // u64
 }
