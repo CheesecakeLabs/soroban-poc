@@ -4,3 +4,4 @@ Cargo.lock
 .env
 .DS_Store
 .vscode
+.soroban
