@@ -60,8 +60,6 @@ fn test_contract() {
     let contract_id = env.register_contract(None, Lottery);
     let contract_identifier = Identifier::Contract(contract_id.clone());
 
-    print!("{:?}", contract_id);
-
     let client = LotteryClient::new(&env, contract_id.clone());
 
     let admin = env.accounts().generate();
